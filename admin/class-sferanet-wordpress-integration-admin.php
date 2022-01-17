@@ -183,6 +183,74 @@ class Sferanet_Wordpress_Integration_Admin {
 			$this->login_sferanet();
 		}
 	}
+
+	/**
+	 * $passenger - Object with properties:
+	 *      - cognome *
+	 *      - nome *
+	 *      - is_contraente *
+	 *      - data_nascita -> format 01/01/1990
+	 *      - sesso
+	 *      - cellulare
+	 *
+	 *  @return array('status'=> true | false, "msg" => "")
+	 */
+	public function add_passenger_practice( $passenger, $practice_id ) {
+
+		$ep = '/prt_praticapasseggeros';
+
+		$this->validate_token();
+
+		$body = array(
+			'pratica'      => "prt_praticas/$practice_id",
+			'cognomepax'   => $passenger->surname,
+			'nomepax'      => $passenger->name,
+			'annullata'    => 0, // ?
+			'iscontraente' => $passenger->is_contraente,
+		);
+
+		if ( isset( $passenger->data_nascita ) ) {
+			$body['datadinascita'] = $passenger->data_nascita;
+		}
+		if ( isset( $passenger->sesso ) ) {
+			$body['sesso'] = $passenger->sesso;
+		}
+		if ( isset( $passenger->cellulare ) ) {
+			$body['cellulare'] = $passenger->cellulare;
+	}
+
+		$response = wp_remote_post(
+			$this->base_url . $ep,
+			array(
+				'body'    => $body,
+				'headers' => array(
+					'Authorization' => 'Bearer ' . $this->get_token(),
+				),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			throw new Exception( "Error while adding a passenger to the practice. Passenger: $passenger->surname $passenger->name. Error: " . $response->get_error_message(), 1 );
+		}
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$status        = false;
+		switch ( $response_code ) {
+			case 201:
+				$status = true;
+				$msg    = 'Passenger associated successfully';
+				break;
+			case 400:
+				$msg = 'Invalid input';
+				break;
+			case 404:
+				$msg = 'Practice id not found.';
+				break;
+		}
+
+		return array(
+			'status' => $status,
+			'msg'    => $msg,
+		);
+
 	}
 
 }
