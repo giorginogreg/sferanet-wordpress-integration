@@ -10,6 +10,8 @@
  * @subpackage Sferanet_Wordpress_Integration/admin
  */
 
+use Firebase\JWT\JWT;
+
 /**
  * The admin-specific functionality of the plugin.
  *
@@ -44,13 +46,13 @@ class Sferanet_Wordpress_Integration_Admin {
 	 * Initialize the class and set its properties.
 	 *
 	 * @since    1.0.0
-	 * @param      string    $plugin_name       The name of this plugin.
-	 * @param      string    $version    The version of this plugin.
+	 * @param      string $plugin_name       The name of this plugin.
+	 * @param      string $version    The version of this plugin.
 	 */
 	public function __construct( $plugin_name, $version ) {
 
 		$this->plugin_name = $plugin_name;
-		$this->version = $version;
+		$this->version     = $version;
 
 	}
 
@@ -98,6 +100,44 @@ class Sferanet_Wordpress_Integration_Admin {
 
 		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/sferanet-wordpress-integration-admin.js', array( 'jquery' ), $this->version, false );
 
+	}
+
+	public function login_sferanet() {
+		$base_url = 'https://catture.partnersolution.it';
+		$ep       = '/login_check';
+
+		$response = wp_remote_post(
+			$base_url . $ep,
+			array(
+				'body' => array(
+					'_username' => 'grifo',
+					'_password' => 'aeUDFGkKn',
+				),
+			)
+		); 
+		if ( is_wp_error( $response ) ) {
+			wp_send_json_error( 'Error Found ( ' . $response->get_error_message() . ' )' );
+		}
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		$is_token_in_body = isset( $body['token'] );
+		if ( $is_token_in_body ) {
+			update_option( 'sferanet_token', $body['token'] );
+		}
+		return $is_token_in_body; // Salvare token in wp option e recuperarlo per ogni chiamata
+	}
+
+	/**
+	 * return if token is at least valid for more than 5 minutes
+	 * 
+	 * @return [type]
+	 */
+	public function token_valid()
+	{
+		$token = get_option('sferanet_token');
+	/* 	if( $token )
+			$token_decoded = JWT::decode($token );
+			$token_decoded->time  */
 	}
 
 }

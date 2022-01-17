@@ -13,7 +13,7 @@
  * @package           Sferanet_Wordpress_Integration
  *
  * @wordpress-plugin
- * Plugin Name:       sferanet-wordpress-integration
+ * Plugin Name:       Sferanet - Wordpress Integration
  * Plugin URI:        https://github.com/giorginogreg/sferanet-wp-integration
  * Description:       This is a short description of what the plugin does. It's displayed in the WordPress admin area.
  * Version:           1.0.0
