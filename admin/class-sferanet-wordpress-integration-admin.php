@@ -32,7 +32,27 @@ class Sferanet_Wordpress_Integration_Admin {
 	 * @var      string    $plugin_name    The ID of this plugin.
 	 */
 	private $plugin_name;
+	protected $base_url;
+	protected $token;
 
+	/**
+	 * Set the value of token
+	 *
+	 * @return  self
+	 */
+	public function set_token( $token ) {
+		update_option( 'sferanet_token', $token );
+		$this->token = $token;
+
+		return $this;
+	}
+
+	/**
+	 * Get the value of token
+	 */
+	public function get_token() {
+		return $this->token;
+	}
 	/**
 	 * The version of this plugin.
 	 *
@@ -53,7 +73,12 @@ class Sferanet_Wordpress_Integration_Admin {
 
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
-
+		$this->base_url    = 'https://catture.partnersolution.it';
+		try {
+			$this->token = $this->login_sferanet();
+		} catch ( Exception $th ) {
+			wp_die( 'Login error: ' . $th->getMessage() );
+		}
 	}
 
 	/**
@@ -102,12 +127,16 @@ class Sferanet_Wordpress_Integration_Admin {
 
 	}
 
+	/**
+	 * Make login into management software and return the token, or throw an exception if the http request had some trouble or if the credentials are not valid
+	 * @return Token
+	 */
 	public function login_sferanet() {
-		$base_url = 'https://catture.partnersolution.it';
-		$ep       = '/login_check';
+
+		$ep = '/login_check';
 
 		$response = wp_remote_post(
-			$base_url . $ep,
+			$this->base_url . $ep,
 			array(
 				'body' => array(
 					'_username' => 'grifo',
@@ -116,15 +145,19 @@ class Sferanet_Wordpress_Integration_Admin {
 			)
 		); 
 		if ( is_wp_error( $response ) ) {
-			wp_send_json_error( 'Error Found ( ' . $response->get_error_message() . ' )' );
+			throw new Exception( 'Error during login call in Sfera Net: ' . $response->get_error_message(), 1 );
 		}
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		$is_token_in_body = isset( $body['token'] );
 		if ( $is_token_in_body ) {
-			update_option( 'sferanet_token', $body['token'] );
+			$this->set_token( $body['token'] );
+			return $body['token'];
+		} else {
+			// It can be also credentials mismatch
+			throw new Exception( 'Error Processing Request: token not set in response body', 1 );
 		}
-		return $is_token_in_body; // Salvare token in wp option e recuperarlo per ogni chiamata
+
 	}
 
 	/**
@@ -132,12 +165,24 @@ class Sferanet_Wordpress_Integration_Admin {
 	 * 
 	 * @return [type]
 	 */
-	public function token_valid()
-	{
-		$token = get_option('sferanet_token');
-	/* 	if( $token )
-			$token_decoded = JWT::decode($token );
-			$token_decoded->time  */
+	public function is_token_valid( $token ) {
+
+		list($header, $payload, $signature) = explode( '.', $token );
+		// $token_decoded = JWT::decode($token );
+		// $token_decoded->time
+
+		$payload = json_decode( base64_decode( $payload ) );
+		// $payload->exp; // altri dati: username, iat, roles (array di stringhe)
+		return ( $payload->exp > strtotime( '+5 min' ) );
+
+	}
+
+	public function validate_token() {
+
+		if ( ! $this->is_token_valid( $this->get_token() ) ) {
+			$this->login_sferanet();
+		}
+	}
 	}
 
 }
