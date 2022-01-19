@@ -49,6 +49,13 @@ class Sferanet_Wordpress_Integration_Admin {
 	protected $token;
 
 	/**
+	 * Get the value of token
+	 */
+	public function get_token() {
+
+		return $token ?? get_option( 'sferanet_token' );
+	}
+	/**
 	 * Set the value of token
 	 *
 	 * @param mixed $token JWT token.
@@ -58,16 +65,9 @@ class Sferanet_Wordpress_Integration_Admin {
 	public function set_token( $token ) {
 		update_option( 'sferanet_token', $token );
 		$this->token = $token;
-
 		return $this;
 	}
 
-	/**
-	 * Get the value of token
-	 */
-	public function get_token() {
-		return $this->token;
-	}
 	/**
 	 * The version of this plugin.
 	 *
@@ -89,8 +89,9 @@ class Sferanet_Wordpress_Integration_Admin {
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
 		$this->base_url    = 'https://catture.partnersolution.it';
+
 		try {
-			$this->token = $this->login_sferanet();
+			$this->validate_token();
 		} catch ( \Exception $th ) {
 			//phpcs:ignore
 			wp_die( 'Login error: ' . $th->getMessage() );
@@ -185,6 +186,10 @@ class Sferanet_Wordpress_Integration_Admin {
 	 * @return [type]
 	 */
 	public function is_token_valid( $token ) {
+
+		if ( ! $token ) {
+			return false;
+		}
 
 		list($header, $payload, $signature) = explode( '.', $token );
 		// $token_decoded = JWT::decode($token );

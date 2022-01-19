@@ -13,6 +13,8 @@
  * @subpackage Sferanet_Wordpress_Integration/includes
  */
 
+use Sferanet_Wp_Integration\Admin\Sferanet_Wordpress_Integration_Admin;
+
 /**
  * The core plugin class.
  *
