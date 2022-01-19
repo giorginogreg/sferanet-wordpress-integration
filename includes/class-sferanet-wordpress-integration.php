@@ -13,8 +13,6 @@
  * @subpackage Sferanet_Wordpress_Integration/includes
  */
 
-use Sferanet_Wp_Integration\Admin\Sferanet_Wordpress_Integration_Admin;
-
 /**
  * The core plugin class.
  *
@@ -158,9 +156,7 @@ class Sferanet_Wordpress_Integration {
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
-		//$this->loader->add_action( 'wp', $plugin_admin, 'login_sferanet' );
-
-		
+		// $this->loader->add_action( 'wp', $plugin_admin, 'login_sferanet' );
 	}
 
 	/**

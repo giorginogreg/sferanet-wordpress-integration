@@ -9,8 +9,6 @@
  * @subpackage Sferanet_Wordpress_Integration/admin
  */
 
-namespace Sferanet_Wp_Integration\Admin;
-
 use Firebase\JWT\JWT;
 
 /**
@@ -294,12 +292,12 @@ class Sferanet_Wordpress_Integration_Admin {
 	 * @return [type]
 	 */
 	public function create_practice( $contractor ) {
+
 		$ep = '/prt_praticas';
-
 		$this->validate_token();
-		$date = gmdate( 'Y-m-d\TH:i:s' );
+		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
+		require_once 'Practice_Status.php';
 		$body = array(
-
 			'codiceagenzia'      => 'DEMO2',
 			'tipocattura'        => 'PSCATTURE',
 			// 'passeggeri'      => ['nome e cognome', 'nome2'...],
@@ -323,9 +321,9 @@ class Sferanet_Wordpress_Integration_Admin {
 			'datasaldo'          => $date,
 			'datamodifica'       => $date,
 			'stato'              => Practice_Status::WORK_IN_PROGRESS,
-			'descrizionepratica' => '',
-			'noteinterne'        => '',
-			'noteesterne'        => '',
+			'descrizionepratica' => 'Test',
+			'noteinterne'        => 'Test nota interna',
+			'noteesterne'        => 'Test nota esterna',
 
 			/*
 			 'prtPraticaservizio' => array(
@@ -353,9 +351,10 @@ class Sferanet_Wordpress_Integration_Admin {
 		$response = wp_remote_post(
 			$this->base_url . $ep,
 			array(
-				'body'    => $body,
+				'body'    => json_encode( $body ),
 				'headers' => array(
 					'Authorization' => 'Bearer ' . $this->get_token(),
+					'Content-Type'  => 'application/json',
 				),
 			)
 		);
@@ -370,7 +369,7 @@ class Sferanet_Wordpress_Integration_Admin {
 				$status      = true;
 				$msg         = 'Practice created successfully';
 				$body        = json_decode( wp_remote_retrieve_body( $response ) );
-				$practice_id = explode( '/', $body['@id'] );
+				$practice_id = explode( '/', $body->{@'id'} );
 				$data        = array(
 					'practice_id' => $practice_id[ count( $practice_id ) - 1 ],
 				);
