@@ -2,8 +2,8 @@
 /**
  * The admin-specific functionality of the plugin.
  *
- * @link       https://github.com/giorginogreg
- * @since      1.0.0
+ * @link  https://github.com/giorginogreg
+ * @since 1.0.0
  *
  * @package    Sferanet_Wordpress_Integration
  * @subpackage Sferanet_Wordpress_Integration/admin
@@ -23,12 +23,13 @@ use Firebase\JWT\JWT;
  */
 class Sferanet_Wordpress_Integration_Admin {
 
+
 	/**
 	 * The ID of this plugin.
 	 *
-	 * @since    1.0.0
-	 * @access   private
-	 * @var      string    $plugin_name    The ID of this plugin.
+	 * @since  1.0.0
+	 * @access private
+	 * @var    string    $plugin_name    The ID of this plugin.
 	 */
 	private $plugin_name;
 
@@ -69,18 +70,18 @@ class Sferanet_Wordpress_Integration_Admin {
 	/**
 	 * The version of this plugin.
 	 *
-	 * @since    1.0.0
-	 * @access   private
-	 * @var      string    $version    The current version of this plugin.
+	 * @since  1.0.0
+	 * @access private
+	 * @var    string    $version    The current version of this plugin.
 	 */
 	private $version;
 
 	/**
 	 * Initialize the class and set its properties.
 	 *
-	 * @since    1.0.0
-	 * @param      string $plugin_name       The name of this plugin.
-	 * @param      string $version    The version of this plugin.
+	 * @since 1.0.0
+	 * @param string $plugin_name The name of this plugin.
+	 * @param string $version     The version of this plugin.
 	 */
 	public function __construct( $plugin_name, $version ) {
 
@@ -91,15 +92,15 @@ class Sferanet_Wordpress_Integration_Admin {
 		try {
 			$this->validate_token();
 		} catch ( \Exception $th ) {
-			//phpcs:ignore
-			wp_die( 'Login error: ' . $th->getMessage() );
+		 //phpcs:ignore
+		 wp_die( 'Login error: ' . $th->getMessage() );
 		}
 	}
 
 	/**
 	 * Register the stylesheets for the admin area.
 	 *
-	 * @since    1.0.0
+	 * @since 1.0.0
 	 */
 	public function enqueue_styles() {
 
@@ -122,7 +123,7 @@ class Sferanet_Wordpress_Integration_Admin {
 	/**
 	 * Register the JavaScript for the admin area.
 	 *
-	 * @since    1.0.0
+	 * @since 1.0.0
 	 */
 	public function enqueue_scripts() {
 
@@ -180,7 +181,7 @@ class Sferanet_Wordpress_Integration_Admin {
 	/**
 	 * Return if token is at least valid for more than 5 minutes
 	 *
-	 * @param mixed $token JWT token.
+	 * @param  mixed $token JWT token.
 	 * @return [type]
 	 */
 	public function is_token_valid( $token ) {
@@ -210,15 +211,14 @@ class Sferanet_Wordpress_Integration_Admin {
 	/**
 	 * Add passenger to a practice already existent
 	 *
-	 * @param mixed $passenger - Object with properties.
-	 *      - cognome *
-	 *      - nome *
-	 *      - is_contraente *
-	 *      - data_nascita -> format 01/01/1990
-	 *      - sesso
-	 *      - cellulare.
+	 * @param mixed $passenger   - Object with properties.
+	 *                           - cognome * - nome * -
+	 *                           is_contraente * -
+	 *                           data_nascita -> format
+	 *                           01/01/1990 - sesso -
+	 *                           cellulare.
 	 *
-	 * @param mixed $practice_id Id of the practice already existent.
+	 * @param  mixed $practice_id Id of the practice already existent.
 	 * @throws \Exception An exception is thrown if the http call had some trouble issues.
 	 *
 	 * @return array('status'=> true | false, "msg" => "")
@@ -285,8 +285,8 @@ class Sferanet_Wordpress_Integration_Admin {
 	 * Create a new practice with work in progress status.
 	 *
 	 * @param mixed $contractor User with the following properties:
-	 *  - Surname
-	 *  - Name.
+	 *                          - Surname
+	 *                          - Name.
 	 *
 	 * @throws \Exception An exception is thrown if the http call had some trouble issues.
 	 * @return [type]
@@ -296,7 +296,7 @@ class Sferanet_Wordpress_Integration_Admin {
 		$ep = '/prt_praticas';
 		$this->validate_token();
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
-		require_once 'Practice_Status.php';
+		include_once 'Practice_Status.php';
 		$body = array(
 			'codiceagenzia'      => 'DEMO2',
 			'tipocattura'        => 'PSCATTURE',
@@ -305,10 +305,10 @@ class Sferanet_Wordpress_Integration_Admin {
 			// 'externalid'         => '123456mioid',
 
 			/*
-			   'servizi'          => array(
-				  'string',
-			  ),
-			  */
+			 'servizi'          => array(
+			'string',
+			),
+			*/
 			// "codextpuntovendita"=> "string", // optional=> length 36
 			// "codicecliente"=> "string", // optional=> length 36
 			// "capcliente"=> "string", //  optional=> length 10
@@ -321,13 +321,13 @@ class Sferanet_Wordpress_Integration_Admin {
 			'datasaldo'          => $date,
 			'datamodifica'       => $date,
 			'stato'              => Practice_Status::WORK_IN_PROGRESS,
-			'descrizionepratica' => 'Test',
+			'descrizionepratica' => 'Test', // Ciò che apparirà sulla fattura
 			'noteinterne'        => 'Test nota interna',
 			'noteesterne'        => 'Test nota esterna',
 
 			/*
-			 'prtPraticaservizio' => array(
-				'string', ??
+			'prtPraticaservizio' => array(
+			'string', ??
 			),
 			*/
 			// 'user'               => 'string',
@@ -389,4 +389,98 @@ class Sferanet_Wordpress_Integration_Admin {
 		);
 	}
 
+
+	/**
+	 * Adds a new customer into the managerial software SferaNet.
+	 *
+	 * @param mixed $customer Customer object.
+	 *
+	 * @return [type]
+	 */
+	public function create_account( $customer ) {
+
+		$ep = '/accounts';
+		$this->validate_token();
+		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
+		include_once 'Account_Status.php';
+		$body = array(
+			'codiceagenzia'      => 'DEMO2',
+			'tipocattura'        => 'PSCATTURE',
+			'cognome'            => $customer->surname, // Surname or business name
+			'flagpersonafisica'  => $customer->is_physical_person,
+			'codicefiscale'      => $customer->fiscal_code, // Can be also VAT number
+			'iscliente'          => 0,
+			'isfornitore'        => 0,
+			'ispromotore'        => 0,
+			'creazione'          => $date,
+			'indirizzo1'         => $customer->first_address,
+			'stato'              => Account_Status::INSERTING,
+			'emailcomunicazioni' => $customer->email_address,
+			'datanascita'        => $customer->birthday,
+		);
+
+		$optional_values = array(
+			// Managerial sw key 	 => $object key
+
+			'partitaiva'             => 'VAT_number',
+			'externalid'             => 'external_id', // Univoque id from the supplier
+			'nome'                   => 'name',
+			'localitanascitacitta'   => 'born_city',
+			'localitaresidenzacitta' => 'residence_city',
+			'nazione'                => 'nation',
+			'cap'                    => 'postal_code',
+
+			'indirizzo2'             => 'additional_address',
+			'sex'                    => 'sex',
+			'id'                     => 'id',
+			'user'                   => 'user',
+		);
+
+		foreach ( $optional_values as $mgr_sw_key => $obj_key ) {
+			if ( isset( $customer->$obj_key ) ) {
+				$body[ $mgr_sw_key ] = $customer->$obj_key;
+			}
+		}
+
+		$response = wp_remote_post(
+			$this->base_url . $ep,
+			array(
+				'body'    => wp_json_encode( $body ),
+				'headers' => array(
+					'Authorization' => 'Bearer ' . $this->get_token(),
+					'Content-Type'  => 'application/json',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			throw new \Exception( 'Error while creating a new customer. Error: ' . $response->get_error_message(), 1 );
+		}
+
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$status        = false;
+		switch ( $response_code ) {
+			case 201:
+				$status = true;
+				$msg    = 'Customer created successfully';
+				$body   = json_decode( wp_remote_retrieve_body( $response ) );
+				$data   = array(
+					'account_created' => $body,
+				);
+				break;
+			case 400:
+				$msg = 'Invalid input';
+				break;
+			case 404:
+				$msg = 'Resource not found.';
+				break;
+		}
+
+		return array(
+			'status' => $status,
+			'msg'    => $msg,
+			'data'   => $data,
+		);
+
+	}
 }
