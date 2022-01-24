@@ -21,7 +21,7 @@ use Firebase\JWT\JWT;
  * @subpackage Sferanet_Wordpress_Integration/admin
  * @author     Gregorio Giorgino <g.giorgino@grifomultimedia.it>
  */
-class Sferanet_Wordpress_Integration_Admin {
+class Sferanet_WordPress_Integration_Admin {
 
 
 	/**
@@ -250,10 +250,8 @@ class Sferanet_Wordpress_Integration_Admin {
 		$response = wp_remote_post(
 			$this->base_url . $ep,
 			array(
-				'body'    => $body,
-				'headers' => array(
-					'Authorization' => 'Bearer ' . $this->get_token(),
-				),
+				'body'    => json_encode( $body ),
+				'headers' => $this->build_headers(),
 			)
 		);
 		if ( is_wp_error( $response ) ) {
@@ -264,7 +262,7 @@ class Sferanet_Wordpress_Integration_Admin {
 		switch ( $response_code ) {
 			case 201:
 				$status = true;
-				$msg    = 'Passenger associated successfully';
+				$msg    = "Passenger associated successfully to practice $practice_id";
 				break;
 			case 400:
 				$msg = 'Invalid input';
@@ -272,6 +270,8 @@ class Sferanet_Wordpress_Integration_Admin {
 			case 404:
 				$msg = 'Practice id not found.';
 				break;
+			default:
+				$msg = 'Generic error, debug please.';
 		}
 
 		return array(
@@ -305,8 +305,8 @@ class Sferanet_Wordpress_Integration_Admin {
 			// 'externalid'         => '123456mioid',
 
 			/*
-			 'servizi'          => array(
-			'string',
+			'servizi'          => array(
+				'string',
 			),
 			*/
 			// "codextpuntovendita"=> "string", // optional=> length 36
@@ -326,9 +326,9 @@ class Sferanet_Wordpress_Integration_Admin {
 			'noteesterne'        => 'Test nota esterna',
 
 			/*
-			'prtPraticaservizio' => array(
-			'string', ??
-			),
+				'prtPraticaservizio' => array(
+					'string', ??
+				),
 			*/
 			// 'user'               => 'string',
 			// 'elaborata'          => 0,
@@ -351,11 +351,8 @@ class Sferanet_Wordpress_Integration_Admin {
 		$response = wp_remote_post(
 			$this->base_url . $ep,
 			array(
-				'body'    => json_encode( $body ),
-				'headers' => array(
-					'Authorization' => 'Bearer ' . $this->get_token(),
-					'Content-Type'  => 'application/json',
-				),
+				'body'    => wp_json_encode( $body ),
+				'headers' => $this->build_headers(),
 			)
 		);
 		if ( is_wp_error( $response ) ) {
@@ -446,10 +443,7 @@ class Sferanet_Wordpress_Integration_Admin {
 			$this->base_url . $ep,
 			array(
 				'body'    => wp_json_encode( $body ),
-				'headers' => array(
-					'Authorization' => 'Bearer ' . $this->get_token(),
-					'Content-Type'  => 'application/json',
-				),
+				'headers' => $this->build_headers(),
 			)
 		);
 
@@ -482,5 +476,229 @@ class Sferanet_Wordpress_Integration_Admin {
 			'data'   => $data,
 		);
 
+	}
+
+	public function add_service( $service, $practice_id = '' ) {
+		// Tipo pacchetto: catalogo o crociera
+		// Tipo vendita: ORG (Netta? - Default), INT (Commissionabile?) TODO: Chiedere a savio se in fase di creazione è corretta
+		// TODO: campo itinerario not found
+
+		// Opzionali
+
+		/*
+			// Per voli aerei e per pacchetti tour operator
+
+			clausole idoneità esigenze specifiche del viaggiatore (non trovato su api) - Da inserire anche in ecommerce
+
+			prtPraticaservizioquota (Array[string], optional): Add prtQuote
+			pratica (string, optional): di appartenenza @ORM\ManyToOne(targetEntity="PrtPratica",inversedBy="servizi") ,
+			quote (Array[string], optional): One servizio has many quote.
+			prtServizio (object, optional, read only),
+			prtQuote (object, optional, read only),
+			externalid (string, optional): id riga servizio (Vostro id/guid riferimento praticaservizio ) Opzionale ,
+			regimevendita (string, optional): Regime Vendita "74T", "ORD"
+			codiceisodestinazione (string, optional): Codice Iso Destinazione length 10 ,
+			codicefornitore (string): length 36
+			// - Codice del fornitore del servizio. Nel sistema del provider può corrispondere al codice provider
+				// Se possibile utilizzare come codice, in ordine di priorità, la Partita Iva del fornitore o
+				// il Codice Fiscale (se persona fisica senza Partita Iva) o
+				// il codice identificativo del fornitore nel sistema di origine (meglio se univoco)
+			brand (string, optional): Brand servizio length 10
+			localitaDescrizioneLibera (string, optional): Localita descrizione servizio length 255
+			riferimentopressofornitore (string, optional): Person / email length 50
+			nomestrutturavoucher (string, optional),
+			indirizzostrutturavoucher (string, optional),
+			mailstrutturavoucher (string, optional),
+			telefonostrutturavoucher (string, optional),
+
+			noteinterne (string, optional),
+			noteesterne (string, optional),
+			bookingagencyrefext (string, optional): Riferimento Pcc (se attivo B2b) ,
+			codiceagenzianetwork (string, optional),
+			codicechannel (string, optional),
+			descrizionechannel (string, optional),
+			passeggeri (string, optional),
+			fileorigine (string, optional),
+			nazionechannel (string, optional): Nazione Channel iso length 3
+			nazionefornitore (string, optional): Nazione Fornitore iso length 3
+			id (string, optional, read only): id del servizio
+			user (string, optional)
+		*/
+
+		// Assicurazione annull:
+		// -> Proposta ma non accettata: se a pagamento ma non accettata.
+		// -> Inclusa: se prezzo è 0
+		// -> Stipulata: prezzo non inserito?
+		// -> Non prevista
+
+		$ep = '/prt_praticaservizios';
+		$this->validate_token();
+		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
+		include_once 'Account_Status.php';
+		$body = array(
+			'annullata'           => 0,
+			'datacreazione'       => $date,
+			'tipodestinazione'    => $service->destination_type,
+			'tiposervizio'        => $service->type,
+			'descrizione'         => $service->description, // Ciò che apparirà sulla fattura (stesso della pratica)
+			'ragsocfornitore'     => $service->supplier_business_name,
+			'codicefornitore'     => '',
+			'codicefilefornitore' => $service->supplier_file_code, // Codice di Conferma del fornitore per la prenotazione
+			'datainizioservizio'  => $service->start_date,
+			'datafineservizio'    => $service->end_date,
+			'duratagg'            => $service->duration_days,
+			'duratant'            => $service->duration_nights,
+			'nrpaxadulti'         => $service->no_pax_adults,
+			'nrpaxchild'          => $service->no_pax_childs,
+			'nrpaxinfant'         => $service->no_pax_infants,
+		);
+
+		$optional_values = array(
+			// Managerial sw key 	 => $object key
+			'partenzada'                 => '', // descrittivo partenza
+			'rientroa'                   => '', // descrittivo rientro
+			'destinazione'               => '',
+			'sistemazione'               => '', // TODO: La select ha molte opzioni, noi invece inseriamo un testo libero, da discutere
+			'struttura'                  => '', // nome struttura solo per pacchetti tour operator
+			'trattamento'                => '', // TODO: sull'ecommerce non presente?
+			'trasporti'                  => '', // Campo descrittivo (len 255)
+			'altriservizi'               => '', // TODO: non trovato su gestionale? - Titoli di quello che ha acquistato
+			'quote'                      => '',
+			'prtServizio'                => '',
+			'prtQuote'                   => '',
+			'externalid'                 => '',
+			'regimevendita'              => '',
+			'codiceisodestinazione'      => '',
+			'brand'                      => '',
+			'localitaDescrizioneLibera'  => '',
+			'riferimentopressofornitore' => '',
+			'nomestrutturavoucher'       => '',
+			'indirizzostrutturavoucher'  => '',
+			'mailstrutturavoucher'       => '',
+			'telefonostrutturavoucher'   => '',
+			'noteinterne'                => '',
+			'noteesterne'                => '',
+			'bookingagencyrefext'        => '',
+			'codiceagenzianetwork'       => '',
+			'codicechannel'              => '',
+			'descrizionechannel'         => '',
+			'passeggeri'                 => '',
+			'fileorigine'                => '',
+			'nazionechannel'             => '',
+			'nazionefornitore'           => '',
+			'id'                         => '',
+			'prtPraticaservizioquota'    => '',
+			'user'                       => '',
+		);
+
+		if ( $practice_id ) {
+			$body['pratica'] = "/prt_praticas/$practice_id";
+		}
+
+		foreach ( $optional_values as $mgr_sw_key => $obj_key ) {
+			if ( isset( $customer->$obj_key ) ) {
+				$body[ $mgr_sw_key ] = $customer->$obj_key;
+			}
+		}
+
+		$response = wp_remote_post(
+			$this->base_url . $ep,
+			array(
+				'body'    => wp_json_encode( $body ),
+				'headers' => $this->build_headers(),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			throw new \Exception( 'Error while associating a service to a practice. Error: ' . $response->get_error_message(), 1 );
+		}
+
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$status        = false;
+		$response_body = json_decode( wp_remote_retrieve_body( $response ) );
+
+		switch ( $response_code ) {
+			case 201:
+				$status = true;
+				$msg    = 'Service associated to practice successfully';
+				$data   = array(
+					'service_associated' => $response_body,
+				);
+				break;
+			case 400:
+				$msg  = 'Invalid input';
+				$data = $response_body;
+				break;
+			case 404:
+				$msg = 'Resource not found.';
+				break;
+			default:
+				$msg = 'Generic error, debug please';
+		}
+
+		return array(
+			'status' => $status,
+			'msg'    => $msg,
+			'data'   => $data,
+		);
+	}
+
+	public function add_quote_service( $service_id ) {
+		/*
+			descrizionequota (string): max 100
+			datavendita (string)
+			quantitacosto (integer), -> da mettere a 0
+			costovalutaprimaria (number), -> da mettere a 0
+			quantitaricavo (integer, optional),
+			ricavovalutaprimaria (number),
+			codiceisovalutaricavo (string),
+			commissioniattivevalutaprimaria (number),
+			commissionipassivevalutaprimaria (number),
+			progressivo (integer),
+			annullata (integer),
+			servizio (string, optional): di appartenenza @ORM\ManyToOne(targetEntity="PrtPraticaservizio",inversedBy="quote")
+			datacambiocosto (string, optional): data del cambio
+			codiceisovalutacosto (string, optional)
+			tassocambiocosto (number, optional): Valore di cambio alla data indicata da datacambiocosto ,
+			cambioineurocosto (integer, optional): (0|1) Vale 0 se il cambio è espresso in valuta estera Vs Euro. Esempio: Dollari necessari per acquistare per 1 euro. Vale 1 se il cambio è espresso in Euro Vs valuta estera. Esempio: Euro necessari per acquistare 1 Dollaro. ,
+			id (string, optional, read only),
+			user (string, optional)
+		*/
+	}
+
+	public function add_financial_transaction( $practice_id ) {
+		/*
+			codiceagenzia (string): AG del provider
+
+			- Manca operatore ADV
+			codcausale (string): codice causale ( INC ) - Dovrà andare necessariamente POS
+			- Deposito finanziario - manca
+			datamovimento (string),
+			descrizione (string): descrizione del movimento
+
+			importo (number)
+
+			externalid (string): id riga Pratica/lista (Vostro id/guid riferimento Pratica/vendita/lista )
+			tipomovimento (string): Tipo Movimento incasso o pagamento ( I,P ) ,
+			codicefile (string, optional): Codice di Conferma del fornitore per la prenotazione quando disponibile length 20 ,
+			codiceaida (string, optional): Codice carta Aida ,
+			spesebancarie (number, optional),
+			tipocattura (string): Tipo applicato fornito da PARTNER SOLUTION ,
+			id (string, optional): id del Movimento ,
+			datacreazione (string),
+			datamodifica (string),
+			datamatrimonio (string, optional),
+			stato (string): stato della Movimento ( INS, MOD, CANC) INS quando è stata caricata completamente o a MOD quando è stata modificata in uno dei suoi elementi. WPRELOAD per ricaricaricare completamente gli elementi interni (tutti i child verranno annullati) lo stato dovrà poi essere settato a MOD ,
+			firma (string, optional),
+			dedica (string, optional),
+			user (string, optional)
+		*/
+	}
+
+	private function build_headers() {
+		return array(
+			'Authorization' => 'Bearer ' . $this->get_token(),
+			'Content-Type'  => 'application/json',
+		);
 	}
 }

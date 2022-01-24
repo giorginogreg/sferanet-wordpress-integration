@@ -1,5 +1,4 @@
 <?php
-
 /**
  * The file that defines the core plugin class
  *
@@ -27,7 +26,7 @@
  * @subpackage Sferanet_Wordpress_Integration/includes
  * @author     Gregorio Giorgino <g.giorgino@grifomultimedia.it>
  */
-class Sferanet_Wordpress_Integration {
+class Sferanet_WordPress_Integration {
 
 	/**
 	 * The loader that's responsible for maintaining and registering all hooks that power
@@ -152,7 +151,7 @@ class Sferanet_Wordpress_Integration {
 	 */
 	private function define_admin_hooks() {
 
-		$plugin_admin = new Sferanet_Wordpress_Integration_Admin( $this->get_plugin_name(), $this->get_version() );
+		$plugin_admin = new Sferanet_WordPress_Integration_Admin( $this->get_plugin_name(), $this->get_version() );
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
