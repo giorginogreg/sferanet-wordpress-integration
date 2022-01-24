@@ -643,19 +643,8 @@ class Sferanet_WordPress_Integration_Admin {
 		);
 	}
 
-	public function add_quote_service( $service_id ) {
+	public function add_quote_service( $sold_services, $service_id ) {
 		/*
-			descrizionequota (string): max 100
-			datavendita (string)
-			quantitacosto (integer), -> da mettere a 0
-			costovalutaprimaria (number), -> da mettere a 0
-			quantitaricavo (integer, optional),
-			ricavovalutaprimaria (number),
-			codiceisovalutaricavo (string),
-			commissioniattivevalutaprimaria (number),
-			commissionipassivevalutaprimaria (number),
-			progressivo (integer),
-			annullata (integer),
 			servizio (string, optional): di appartenenza @ORM\ManyToOne(targetEntity="PrtPraticaservizio",inversedBy="quote")
 			datacambiocosto (string, optional): data del cambio
 			codiceisovalutacosto (string, optional)
@@ -664,35 +653,186 @@ class Sferanet_WordPress_Integration_Admin {
 			id (string, optional, read only),
 			user (string, optional)
 		*/
+
+		$ep = '/prt_praticaservizioquotas';
+		$this->validate_token();
+		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
+
+		$body = array(
+			'descrizionequota'                 => 'Test descrizione',
+			'datavendita'                      => $date,
+			'quantitacosto'                    => 1, // fornitore?
+			'costovalutaprimaria'              => 0, // costo fornitore
+			'codiceisovalutacosto'             => 'EUR',
+			'quantitaricavo'                   => count( $sold_services ), // No. services sold
+			'ricavovalutaprimaria'             => array_sum( array_column( $sold_services, 'price' ) ),
+			'codiceisovalutaricavo'            => 'EUR', // ??
+			'commissioniattivevalutaprimaria'  => 0,
+			'commissionipassivevalutaprimaria' => 0,
+			'progressivo'                      => 0, // TODO: Cos'è?
+			'annullata'                        => 0,
+			'servizio'                         => "prt_praticaservizios/$service_id",
+		);
+
+		/*
+		$optional_values = array(
+			// Managerial sw key 	 => $object key
+			'datacambiocosto'   => '',
+			'tassocambiocosto'  => '',
+			'cambioineurocosto' => '',
+			'id'                => '',
+			'user'              => '',
+		);
+		*/
+
+		/*
+		  foreach ( $optional_values as $mgr_sw_key => $obj_key ) {
+			if ( isset( $customer->$obj_key ) ) {
+				$body[ $mgr_sw_key ] = $customer->$obj_key;
+			}
+		} */
+
+		$response = wp_remote_post(
+			$this->base_url . $ep,
+			array(
+				'body'    => wp_json_encode( $body ),
+				'headers' => $this->build_headers(),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			throw new \Exception( 'Error while creating a practice quote related to a service. Error: ' . $response->get_error_message(), 1 );
+		}
+
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$status        = false;
+		$response_body = json_decode( wp_remote_retrieve_body( $response ) );
+
+		switch ( $response_code ) {
+			case 201:
+				$status = true;
+				$msg    = 'Quote created and associated to the service successfully';
+				$data   = array(
+					'quote_created' => $response_body,
+				);
+				break;
+			case 400:
+				$msg  = 'Invalid input';
+				$data = $response_body;
+				break;
+			case 404:
+				$msg = 'Resource not found.';
+				break;
+			default:
+				$msg = 'Generic error, debug please';
+		}
+
+		return array(
+			'status' => $status,
+			'msg'    => $msg,
+			'data'   => $data,
+		);
+
 	}
 
-	public function add_financial_transaction( $practice_id ) {
+	public function add_financial_transaction( $financial_transaction, $practice_id ) {
 		/*
-			codiceagenzia (string): AG del provider
-
 			- Manca operatore ADV
-			codcausale (string): codice causale ( INC ) - Dovrà andare necessariamente POS
 			- Deposito finanziario - manca
-			datamovimento (string),
-			descrizione (string): descrizione del movimento
 
-			importo (number)
-
+			stato (string): stato della Movimento ( INS, MOD, CANC)
+				- INS quando è stata caricata completamente
+				- MOD quando è stata modificata in uno dei suoi elementi
+				- WPRELOAD per ricaricaricare completamente gli elementi interni (tutti i child verranno annullati) lo stato dovrà poi essere settato a MOD
 			externalid (string): id riga Pratica/lista (Vostro id/guid riferimento Pratica/vendita/lista )
-			tipomovimento (string): Tipo Movimento incasso o pagamento ( I,P ) ,
+
 			codicefile (string, optional): Codice di Conferma del fornitore per la prenotazione quando disponibile length 20 ,
 			codiceaida (string, optional): Codice carta Aida ,
 			spesebancarie (number, optional),
-			tipocattura (string): Tipo applicato fornito da PARTNER SOLUTION ,
 			id (string, optional): id del Movimento ,
-			datacreazione (string),
-			datamodifica (string),
 			datamatrimonio (string, optional),
-			stato (string): stato della Movimento ( INS, MOD, CANC) INS quando è stata caricata completamente o a MOD quando è stata modificata in uno dei suoi elementi. WPRELOAD per ricaricaricare completamente gli elementi interni (tutti i child verranno annullati) lo stato dovrà poi essere settato a MOD ,
 			firma (string, optional),
 			dedica (string, optional),
 			user (string, optional)
 		*/
+
+		$ep = '/mov_finanziarios';
+		$this->validate_token();
+		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
+
+		$body = array(
+			'codiceagenzia' => 'DEMO2',
+			'tipocattura'   => 'PSCATTURE',
+			'externalid'    => wp_unique_id(), // TODO: o practice id?
+			'codcausale'    => 'POS', // TODO: testare se corretto
+			'datamovimento' => $date,
+			'datacreazione' => $date,
+			'datamodifica'  => $date,
+			'descrizione'   => $financial_transaction->description,
+			'importo'       => $financial_transaction->total,
+			'stato'         => Financial_Transaction_Status::INSERTING,
+			'tipomovimento' => Movement_Type::RECESSED,
+		);
+
+		/*
+		$optional_values = array(
+			// Managerial sw key 	 => $object key
+			'datacambiocosto'   => '',
+			'tassocambiocosto'  => '',
+			'cambioineurocosto' => '',
+			'id'                => '',
+			'user'              => '',
+		);
+		*/
+
+		/*
+		  foreach ( $optional_values as $mgr_sw_key => $obj_key ) {
+			if ( isset( $customer->$obj_key ) ) {
+				$body[ $mgr_sw_key ] = $customer->$obj_key;
+			}
+		} */
+
+		$response = wp_remote_post(
+			$this->base_url . $ep,
+			array(
+				'body'    => wp_json_encode( $body ),
+				'headers' => $this->build_headers(),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			throw new \Exception( 'Error while creating a transactional movement. Error: ' . $response->get_error_message(), 1 );
+		}
+
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$status        = false;
+		$response_body = json_decode( wp_remote_retrieve_body( $response ) );
+
+		switch ( $response_code ) {
+			case 201:
+				$status = true;
+				$msg    = 'Quote created and associated to the service successfully';
+				$data   = array(
+					'quote_created' => $response_body,
+				);
+				break;
+			case 400:
+				$msg  = 'Invalid input';
+				$data = $response_body;
+				break;
+			case 404:
+				$msg = 'Resource not found.';
+				break;
+			default:
+				$msg = 'Generic error, debug please';
+		}
+
+		return array(
+			'status' => $status,
+			'msg'    => $msg,
+			'data'   => $data,
+		);
+
 	}
 
 	private function build_headers() {
