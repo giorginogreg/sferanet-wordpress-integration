@@ -208,6 +208,139 @@ class Sferanet_WordPress_Integration_Admin {
 		}
 	}
 
+	private function get_all_accounts( $contractor = null ) {
+		$ep = '/accounts';
+		$this->validate_token();
+		$response = wp_remote_get(
+			$this->base_url . $ep,
+			array(
+				'headers' => $this->build_headers(),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			throw new \Exception( 'Error while getting all accounts. Error: ' . $response->get_error_message(), 1 );
+		}
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$status        = false;
+		switch ( $response_code ) {
+			case 200:
+				$status = true;
+				$msg    = 'Accounts retrieved successfully.';
+				$body   = json_decode( wp_remote_retrieve_body( $response ) );
+				$data   = $body['hydra:member'];
+				break;
+
+			default:
+				$msg = 'Generic error, debug please.';
+		}
+
+		return array(
+			'status' => $status,
+			'msg'    => $msg,
+			'data'   => $data,
+		);
+	}
+
+	/**
+	 * id can be VAT code or TAX code
+	 *
+	 * @param [type] $contractor
+	 * @return void
+	 */
+	protected function get_user_by_id( $id, $is_business = false ) {
+		$result = $this->get_all_accounts();
+		if ( $result['status'] ) {
+			$accounts = $result['data'];
+		}
+		$found = false;
+		$field = $is_business ? 'partitaiva' : 'codice_fiscale';
+		foreach ( $accounts as $account ) {
+			if ( $account->$field === $id ) {
+				return $account;
+			}
+		}
+
+		return $found;
+	}
+
+	public function run_workflow( $order ) {
+
+		$contractor = $this->build_contractor( $order );
+
+		$services = $this->get_services_bought( $order );
+
+		$contractor_exists = $this->get_user_by_id( $contractor->fiscal_code ); // For complexity, this function return false or the account id
+		if ( ! $contractor_exists ) {
+			$result = $this->create_account( $contractor );
+			if ( $result['status'] ) {
+				$contractor->id = $result['data']['account_created']['id'];
+			} else {
+				return $result;
+			}
+		} else {
+			$contractor->id = $contractor_exists['codicefiscale'];
+		}
+
+		$result = $this->create_practice( $contractor );
+		// $passengers = array();
+
+		if ( $result['status'] ) {
+			$practice_id = $result['data']['practice_id'];
+			/*
+				foreach($passengers as $passenger) {
+					$this->add_passenger_practice($passenger, $practice_id);
+				}
+			*/
+			foreach ( $services as $service ) {
+				$result             = $this->add_service( $service, $practice_id );
+				$service_associated = $result['status'];
+				if ( $service_associated ) {
+					$service_id = $result['data']['service_associated']['id'];
+					$result     = $this->add_quote_service( $services, $service_id );
+				}
+			}
+
+			$financial_transaction = $this->build_financial_transaction( $order );
+
+			$result = $this->add_financial_transaction( $financial_transaction, $practice_id );
+
+			return $result['status'];
+		}
+
+	}
+
+	private function build_contractor( $order ) {
+		// @see https://www.businessbloomer.com/woocommerce-easily-get-order-info-total-items-etc-from-order-object/
+		$contractor          = new stdClass();
+		$contractor->name    = $order->get_billing_first_name();
+		$contractor->surname = $order->get_billing_last_name();
+
+		return $contractor;
+	}
+
+	private function build_financial_transaction( $order ) {
+		$financial_transaction              = new stdClass();
+		$financial_transaction->total       = $order->get_total();
+		$financial_transaction->description = $order->get_customer_note();
+
+		return $financial_transaction;
+	}
+
+	private function get_services_bought( $order ) {
+		// @see https://www.businessbloomer.com/woocommerce-easily-get-order-info-total-items-etc-from-order-object/
+		$services = array();
+
+		foreach ( $order->get_items() as $item_id => $item ) {
+			$service           = new stdClass();
+			$service->quantity = $item->get_quantity();
+			$service->name     = $item->get_name();
+		}
+
+		return $services;
+	}
+
+
+
 	/**
 	 * Add passenger to a practice already existent
 	 *
