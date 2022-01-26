@@ -227,7 +227,7 @@ class Sferanet_WordPress_Integration_Admin {
 				$status = true;
 				$msg    = 'Accounts retrieved successfully.';
 				$body   = json_decode( wp_remote_retrieve_body( $response ) );
-				$data   = $body['hydra:member'];
+				$data   = $body->{'hydra:member'};
 				break;
 
 			default:
@@ -245,15 +245,13 @@ class Sferanet_WordPress_Integration_Admin {
 	 * id can be VAT code or TAX code
 	 *
 	 * @param [type] $contractor
-	 * @return void
+	 * @return void | stdClass
 	 */
-	protected function get_user_by_id( $id, $is_business = false ) {
-		$result = $this->get_all_accounts();
-		if ( $result['status'] ) {
-			$accounts = $result['data'];
-		}
-		$found = false;
-		$field = $is_business ? 'partitaiva' : 'codice_fiscale';
+	public function get_user_by_id( $id, $is_business = false ) {
+		$result   = $this->get_all_accounts();
+		$accounts = $result['data'];
+		$found    = false;
+		$field    = $is_business ? 'partitaiva' : 'codicefiscale';
 		foreach ( $accounts as $account ) {
 			if ( $account->$field === $id ) {
 				return $account;
@@ -262,84 +260,6 @@ class Sferanet_WordPress_Integration_Admin {
 
 		return $found;
 	}
-
-	public function run_workflow( $order ) {
-
-		$contractor = $this->build_contractor( $order );
-
-		$services = $this->get_services_bought( $order );
-
-		$contractor_exists = $this->get_user_by_id( $contractor->fiscal_code ); // For complexity, this function return false or the account id
-		if ( ! $contractor_exists ) {
-			$result = $this->create_account( $contractor );
-			if ( $result['status'] ) {
-				$contractor->id = $result['data']['account_created']['id'];
-			} else {
-				return $result;
-			}
-		} else {
-			$contractor->id = $contractor_exists['codicefiscale'];
-		}
-
-		$result = $this->create_practice( $contractor );
-		// $passengers = array();
-
-		if ( $result['status'] ) {
-			$practice_id = $result['data']['practice_id'];
-			/*
-				foreach($passengers as $passenger) {
-					$this->add_passenger_practice($passenger, $practice_id);
-				}
-			*/
-			foreach ( $services as $service ) {
-				$result             = $this->add_service( $service, $practice_id );
-				$service_associated = $result['status'];
-				if ( $service_associated ) {
-					$service_id = $result['data']['service_associated']['id'];
-					$result     = $this->add_quote_service( $services, $service_id );
-				}
-			}
-
-			$financial_transaction = $this->build_financial_transaction( $order );
-
-			$result = $this->add_financial_transaction( $financial_transaction, $practice_id );
-
-			return $result['status'];
-		}
-
-	}
-
-	private function build_contractor( $order ) {
-		// @see https://www.businessbloomer.com/woocommerce-easily-get-order-info-total-items-etc-from-order-object/
-		$contractor          = new stdClass();
-		$contractor->name    = $order->get_billing_first_name();
-		$contractor->surname = $order->get_billing_last_name();
-
-		return $contractor;
-	}
-
-	private function build_financial_transaction( $order ) {
-		$financial_transaction              = new stdClass();
-		$financial_transaction->total       = $order->get_total();
-		$financial_transaction->description = $order->get_customer_note();
-
-		return $financial_transaction;
-	}
-
-	private function get_services_bought( $order ) {
-		// @see https://www.businessbloomer.com/woocommerce-easily-get-order-info-total-items-etc-from-order-object/
-		$services = array();
-
-		foreach ( $order->get_items() as $item_id => $item ) {
-			$service           = new stdClass();
-			$service->quantity = $item->get_quantity();
-			$service->name     = $item->get_name();
-		}
-
-		return $services;
-	}
-
-
 
 	/**
 	 * Add passenger to a practice already existent
@@ -424,7 +344,7 @@ class Sferanet_WordPress_Integration_Admin {
 	 * @throws \Exception An exception is thrown if the http call had some trouble issues.
 	 * @return [type]
 	 */
-	public function create_practice( $contractor ) {
+	public function create_practice( $contractor, $practice_data = null ) {
 
 		$ep = '/prt_praticas';
 		$this->validate_token();
@@ -454,9 +374,9 @@ class Sferanet_WordPress_Integration_Admin {
 			'datasaldo'          => $date,
 			'datamodifica'       => $date,
 			'stato'              => Practice_Status::WORK_IN_PROGRESS,
-			'descrizionepratica' => 'Test', // Ciò che apparirà sulla fattura
-			'noteinterne'        => 'Test nota interna',
-			'noteesterne'        => 'Test nota esterna',
+			'descrizionepratica' => $practice_data->description, // Ciò che apparirà sulla fattura
+			'noteinterne'        => '',
+			'noteesterne'        => '',
 
 			/*
 				'prtPraticaservizio' => array(
@@ -729,8 +649,8 @@ class Sferanet_WordPress_Integration_Admin {
 		}
 
 		foreach ( $optional_values as $mgr_sw_key => $obj_key ) {
-			if ( isset( $customer->$obj_key ) ) {
-				$body[ $mgr_sw_key ] = $customer->$obj_key;
+			if ( isset( $service->$obj_key ) ) {
+				$body[ $mgr_sw_key ] = $service->$obj_key;
 			}
 		}
 
@@ -892,7 +812,8 @@ class Sferanet_WordPress_Integration_Admin {
 		$ep = '/mov_finanziarios';
 		$this->validate_token();
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
-
+		include_once 'Financial_Transaction_Status.php';
+		include_once 'Movement_Type.php';
 		$body = array(
 			'codiceagenzia' => 'DEMO2',
 			'tipocattura'   => 'PSCATTURE',
