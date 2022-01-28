@@ -287,17 +287,17 @@ class Sferanet_WordPress_Integration_Admin {
 			'cognomepax'   => $passenger->surname,
 			'nomepax'      => $passenger->name,
 			'annullata'    => 0, // ?
-			'iscontraente' => $passenger->is_contraente,
+			'iscontraente' => 0,
 		);
 
-		if ( isset( $passenger->data_nascita ) ) {
-			$body['datadinascita'] = $passenger->data_nascita;
+		if ( isset( $passenger->birthday ) ) {
+			$body['datadinascita'] = $passenger->birthday;
 		}
-		if ( isset( $passenger->sesso ) ) {
-			$body['sesso'] = $passenger->sesso;
+		if ( isset( $passenger->sex ) ) {
+			$body['sesso'] = $passenger->sex;
 		}
-		if ( isset( $passenger->cellulare ) ) {
-			$body['cellulare'] = $passenger->cellulare;
+		if ( isset( $passenger->phone_number ) ) {
+			$body['cellulare'] = $passenger->phone_number;
 		}
 
 		$response = wp_remote_post(
@@ -595,7 +595,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'tiposervizio'        => $service->type,
 			'descrizione'         => $service->description, // Ciò che apparirà sulla fattura (stesso della pratica)
 			'ragsocfornitore'     => $service->supplier_business_name,
-			'codicefornitore'     => '',
+			'codicefornitore'     => $service->supplier_code,
 			'codicefilefornitore' => $service->supplier_file_code, // Codice di Conferma del fornitore per la prenotazione
 			'datainizioservizio'  => $service->start_date,
 			'datafineservizio'    => $service->end_date,
@@ -788,7 +788,7 @@ class Sferanet_WordPress_Integration_Admin {
 
 	}
 
-	public function add_financial_transaction( $financial_transaction, $practice_id ) {
+	public function add_financial_transaction( $financial_transaction, $practice_id, $order_id = null ) {
 		/*
 			- Manca operatore ADV
 			- Deposito finanziario - manca
@@ -817,7 +817,7 @@ class Sferanet_WordPress_Integration_Admin {
 		$body = array(
 			'codiceagenzia' => 'DEMO2',
 			'tipocattura'   => 'PSCATTURE',
-			'externalid'    => wp_unique_id(), // TODO: o practice id?
+			'externalid'    => $order_id ?? wp_unique_id(),
 			'codcausale'    => 'POS', // TODO: testare se corretto
 			'datamovimento' => $date,
 			'datacreazione' => $date,
