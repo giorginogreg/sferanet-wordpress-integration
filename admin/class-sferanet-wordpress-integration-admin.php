@@ -595,7 +595,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'tiposervizio'        => $service->type,
 			'descrizione'         => $service->description, // Ciò che apparirà sulla fattura (stesso della pratica)
 			'ragsocfornitore'     => $service->supplier_business_name,
-			'codicefornitore'     => $service->supplier_code,
+			'codicefornitore'     => $service->supplier_business_code,
 			'codicefilefornitore' => $service->supplier_file_code, // Codice di Conferma del fornitore per la prenotazione
 			'datainizioservizio'  => $service->start_date,
 			'datafineservizio'    => $service->end_date,
@@ -865,9 +865,9 @@ class Sferanet_WordPress_Integration_Admin {
 		switch ( $response_code ) {
 			case 201:
 				$status = true;
-				$msg    = 'Quote created and associated to the service successfully';
+				$msg    = 'Financial Movement created correctly';
 				$data   = array(
-					'quote_created' => $response_body,
+					'financial_movement' => $response_body,
 				);
 				break;
 			case 400:
