@@ -365,6 +365,14 @@ class Sferanet_WordPress_Integration_Admin {
 		if ( isset( $passenger->phone_number ) ) {
 			$body['cellulare'] = $passenger->phone_number;
 		}
+
+		if ( isset( $passenger->attachments ) ) {
+			// TODO: Call api for inserting attachments for each att.
+			foreach ( $passenger->attachments as $attachment ) {
+				$this->add_allegatos();
+			}
+		}
+
 		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
 		$response = wp_remote_post(
 			$this->base_url . $ep,
@@ -422,7 +430,7 @@ class Sferanet_WordPress_Integration_Admin {
 		$this->logger->sferanet_logs( 'Creating a new practice.' );
 
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
-		include_once 'Practice_Status.php';
+		include_once 'statuses/Practice_Status.php';
 		$options = get_option( 'sferanet-settings' );
 
 		$body = array(
@@ -537,7 +545,7 @@ class Sferanet_WordPress_Integration_Admin {
 		$this->logger->sferanet_logs( 'Creating a new account. ' );
 
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
-		include_once 'Account_Status.php';
+		include_once 'statuses/Account_Status.php';
 		$options = get_option( 'sferanet-settings' );
 		$body    = array(
 			'codiceagenzia'      => $options['agency_code_field'],
@@ -679,7 +687,7 @@ class Sferanet_WordPress_Integration_Admin {
 		$ep = '/prt_praticaservizios';
 		$this->validate_token();
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
-		include_once 'Account_Status.php';
+		include_once 'statuses/Account_Status.php';
 		$this->logger->sferanet_logs( "Associating a new service to the practice $practice_id" );
 
 		$body = array(
@@ -907,8 +915,8 @@ class Sferanet_WordPress_Integration_Admin {
 				- WPRELOAD per ricaricaricare completamente gli elementi interni (tutti i child verranno annullati) lo stato dovrà poi essere settato a MOD
 			externalid (string): id riga Pratica/lista (Vostro id/guid riferimento Pratica/vendita/lista )
 
-			codicefile (string, optional): Codice di Conferma del fornitore per la prenotazione quando disponibile length 20 ,
-			codiceaida (string, optional): Codice carta Aida ,
+			codicefile (string, optional): Codice di Conferma del fornitore per la prenotazione quando disponibile length 20
+			codiceaida (string, optional): Codice carta Aida
 			spesebancarie (number, optional),
 			id (string, optional): id del Movimento ,
 			datamatrimonio (string, optional),
@@ -922,8 +930,10 @@ class Sferanet_WordPress_Integration_Admin {
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 		$this->logger->sferanet_logs( 'Adding financial transaction.' );
 
-		include_once 'Financial_Transaction_Status.php';
-		include_once 'Movement_Type.php';
+		include_once 'statuses/Financial_Transaction_Status.php';
+		include_once 'types/Movement_Type.php';
+		$options = get_option( 'sferanet-settings' );
+
 		$body = array(
 			'codiceagenzia' => $options['agency_code_field'],
 			'tipocattura'   => 'PSCATTURE',
@@ -994,6 +1004,85 @@ class Sferanet_WordPress_Integration_Admin {
 				$msg = 'Generic error, debug please';
 		}
 
+		$response = array(
+			'status' => $status,
+			'msg'    => $msg,
+			'data'   => $data,
+		);
+
+		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		return $response;
+	}
+
+	public function add_allegatos() {
+		$ep = '/allegatos';
+		$this->validate_token();
+		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
+		$this->logger->sferanet_logs( 'Adding attachments.' );
+
+		$options = get_option( 'sferanet-settings' );
+
+		$body = array();
+
+		$optional_values = array(
+			'id'                            => 'string',
+			'agenziaid'                     => 'string',
+			'allegatotipoid'                => 'string',
+			'visibileingestionedocumentale' => 1,
+			'note'                          => 'string',
+			'uploaddownload'                => 'string',
+			'nometabella'                   => 'string',
+			'idrecord'                      => 'string',
+			'subidrecord'                   => 'string',
+			'nomefile'                      => 'string',
+			'descrizione'                   => 'string',
+			'datainserimento'               => $date,
+			'pubblico'                      => 1,
+			'flagannullato'                 => false,
+			'data'                          => $date,
+			'stato'                         => 'string',
+			'codiceagenzia'                 => 'string',
+			'user'                          => 'string',
+			'userId'                        => 0,
+		);
+
+		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
+
+		$response = wp_remote_post(
+			$this->base_url . $ep,
+			array(
+				'body'    => wp_json_encode( $body ),
+				'headers' => $this->build_headers(),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			$this->logger->sferanet_logs( 'Error while adding an attachment. Error: ' . $response->get_error_message() );
+			throw new \Exception( 'Error while adding an attachment. Error: ' . $response->get_error_message(), 1 );
+		}
+
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$status        = false;
+		$response_body = json_decode( wp_remote_retrieve_body( $response ) );
+
+		switch ( $response_code ) {
+			case 201:
+				$status = true;
+				$msg    = 'Attachments created correctly';
+				$data   = array(
+					// 'financial_movement' => $response_body,
+				);
+				break;
+			case 400:
+				$msg  = 'Invalid input';
+				$data = $response_body;
+				break;
+			case 404:
+				$msg = 'Resource not found.';
+				break;
+			default:
+				$msg = 'Generic error, debug please';
+		}
 
 		$response = array(
 			'status' => $status,
