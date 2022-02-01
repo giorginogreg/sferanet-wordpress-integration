@@ -15,7 +15,7 @@
  * @wordpress-plugin
  * Plugin Name:       Sferanet - Wordpress Integration
  * Plugin URI:        https://github.com/giorginogreg/sferanet-wp-integration
- * Description:       This is a short description of what the plugin does. It's displayed in the WordPress admin area.
+ * Description:       Integration for WordPress between Sferanet and the CMS.
  * Version:           1.0.0
  * Author:            Gregorio Giorgino
  * Author URI:        https://github.com/giorginogreg
