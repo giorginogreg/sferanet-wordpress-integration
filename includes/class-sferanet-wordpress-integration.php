@@ -155,7 +155,10 @@ class Sferanet_WordPress_Integration {
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
-		// $this->loader->add_action( 'wp', $plugin_admin, 'login_sferanet' );
+
+		$this->loader->add_action( 'admin_menu', $plugin_admin, 'admin_menu' );
+		$this->loader->add_action( 'admin_init', $plugin_admin, 'admin_register_setting' );
+
 	}
 
 	/**

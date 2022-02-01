@@ -143,6 +143,53 @@ class Sferanet_WordPress_Integration_Admin {
 
 	}
 
+	 /**
+	  * Registers a new settings page under Settings.
+	  */
+	public function admin_menu() {
+
+		add_options_page(
+			__( 'SferaNet Settings', 'sferanet' ),
+			__( 'SferaNet Settings', 'sferanet' ),
+			'manage_options',
+			'options_sferanet',
+			array( $this, 'settings_page' )
+		);
+	}
+
+
+	public function admin_register_setting() {
+
+		register_setting( 'sferanet-settings-group', 'sferanet-settings' );
+
+		add_settings_section(
+			'settings', // section ID
+			__( 'Settings', 'sferanet' ), // title (if needed)
+			'', // callback function (if needed)
+			'sferanet-settings-group' // page slug
+		);
+
+		add_settings_field(
+			'agency_code_field',
+			__( 'Agency code', 'sferanet' ),
+			array( $this, 'agency_code_field_render' ),
+			'sferanet-settings-group', // page slug
+			'settings', // section ID
+		);
+	}
+
+	/**
+	 * Settings page display callback.
+	 */
+	private function settings_page() {
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/partials/settings.php';
+	}
+
+	private function agency_code_field_render() {
+		$options = get_option( 'sferanet-settings' ); ?>
+		<input type='text' name='sferanet-settings[agency_code_field]' value='<?php echo $options['agency_code_field']; ?>'>
+		<?php
+	}
 	/**
 	 * Make login into management software and return the token
 	 *
