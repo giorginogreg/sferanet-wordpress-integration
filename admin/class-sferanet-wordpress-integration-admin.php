@@ -86,6 +86,7 @@ class Sferanet_WordPress_Integration_Admin {
 	 */
 	public function __construct( $plugin_name, $version ) {
 
+		require_once plugin_dir_path( __FILE__ ) . '../logs/class-sferanet-wordpress-integration-logs-admin.php';
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
 		$this->base_url    = 'https://catture.partnersolution.it';
@@ -257,15 +258,13 @@ class Sferanet_WordPress_Integration_Admin {
 
 	//phpcs:ignore
 	public function validate_token() {
-		$this->logger->sferanet_logs( 'Validating Token...' );
 		if ( ! $this->is_token_valid( $this->get_token() ) ) {
 			$this->logger->sferanet_logs( "Token Not Valid, value: {$this->get_token()}" );
+			$this->logger->sferanet_logs( 'Refreshing token...' );
 
 			$this->login_sferanet();
-
+			$this->logger->sferanet_logs( 'Token refreshed successfully' );
 		}
-		$this->logger->sferanet_logs( 'Token valid.' );
-
 	}
 
 	private function get_all_accounts( $contractor = null ) {

@@ -27,7 +27,8 @@ class Sferanet_Wordpress_Integration_Logs_Admin {
 	 * @return boolean|int Number of bytes written to the lof file, false otherwise.
 	 */
 	function sferanet_logs( $entry, $mode = 'a', $file = 'sferanet_api' ) {
-		if ( ! $SFERANET_DEBUG ) {
+
+		if ( ! defined( 'SFERANET_DEBUG' ) ) {
 			return;
 		}
 		// Get WordPress uploads directory.
