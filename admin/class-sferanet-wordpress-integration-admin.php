@@ -76,6 +76,7 @@ class Sferanet_WordPress_Integration_Admin {
 	 */
 	private $version;
 
+	private $logger;
 	/**
 	 * Initialize the class and set its properties.
 	 *
@@ -89,6 +90,7 @@ class Sferanet_WordPress_Integration_Admin {
 		$this->version     = $version;
 		$this->base_url    = 'https://catture.partnersolution.it';
 
+		$this->logger = Sferanet_Wordpress_Integration_Logs_Admin::getInstance();
 		try {
 			$this->validate_token();
 		} catch ( \Exception $th ) {
@@ -198,6 +200,8 @@ class Sferanet_WordPress_Integration_Admin {
 	 */
 	public function login_sferanet() {
 
+		$this->logger->sferanet_logs( 'Logging into sferanet...' );
+
 		$ep = '/login_check';
 
 		$response = wp_remote_post(
@@ -216,10 +220,14 @@ class Sferanet_WordPress_Integration_Admin {
 
 		$is_token_in_body = isset( $body['token'] );
 		if ( $is_token_in_body ) {
+			$this->logger->sferanet_logs( 'Token successfully acquired.' );
+
 			$this->set_token( $body['token'] );
 			return $body['token'];
 		} else {
 			// It can be also credentials mismatch
+			$this->logger->sferanet_logs( 'Error Processing Request: token not set in response body' );
+
 			throw new \Exception( 'Error Processing Request: token not set in response body', 1 );
 		}
 
@@ -249,14 +257,21 @@ class Sferanet_WordPress_Integration_Admin {
 
 	//phpcs:ignore
 	public function validate_token() {
-
+		$this->logger->sferanet_logs( 'Validating Token...' );
 		if ( ! $this->is_token_valid( $this->get_token() ) ) {
+			$this->logger->sferanet_logs( "Token Not Valid, value: {$this->get_token()}" );
+
 			$this->login_sferanet();
+
 		}
+		$this->logger->sferanet_logs( 'Token valid.' );
+
 	}
 
 	private function get_all_accounts( $contractor = null ) {
 		$ep = '/accounts';
+		$this->logger->sferanet_logs( 'Getting all accounts.' );
+
 		$this->validate_token();
 		$response = wp_remote_get(
 			$this->base_url . $ep,
@@ -265,6 +280,8 @@ class Sferanet_WordPress_Integration_Admin {
 			)
 		);
 		if ( is_wp_error( $response ) ) {
+			$this->logger->sferanet_logs( 'Error while getting all accounts. Error: ' . $response->get_error_message() );
+
 			throw new \Exception( 'Error while getting all accounts. Error: ' . $response->get_error_message(), 1 );
 		}
 		$response_code = wp_remote_retrieve_response_code( $response );
@@ -280,19 +297,22 @@ class Sferanet_WordPress_Integration_Admin {
 			default:
 				$msg = 'Generic error, debug please.';
 		}
-
-		return array(
+		$this->logger->sferanet_logs( 'Response from get_accounts API :' );
+		$response = array(
 			'status' => $status,
 			'msg'    => $msg,
 			'data'   => $data,
 		);
+		$this->logger->sferanet_logs( $response );
+
+		return $response;
 	}
 
 	/**
 	 * id can be VAT code or TAX code
 	 *
 	 * @param [type] $contractor
-	 * @return void | stdClass
+	 * @return bool | stdClass
 	 */
 	public function get_user_by_id( $id, $is_business = false ) {
 		$result   = $this->get_all_accounts();
@@ -328,7 +348,7 @@ class Sferanet_WordPress_Integration_Admin {
 		$ep = '/prt_praticapasseggeros';
 
 		$this->validate_token();
-
+		$this->logger->sferanet_logs( 'Calling add_passenger_practice API.' );
 		$body = array(
 			'pratica'      => "prt_praticas/$practice_id",
 			'cognomepax'   => $passenger->surname,
@@ -346,7 +366,7 @@ class Sferanet_WordPress_Integration_Admin {
 		if ( isset( $passenger->phone_number ) ) {
 			$body['cellulare'] = $passenger->phone_number;
 		}
-
+		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
 		$response = wp_remote_post(
 			$this->base_url . $ep,
 			array(
@@ -355,6 +375,7 @@ class Sferanet_WordPress_Integration_Admin {
 			)
 		);
 		if ( is_wp_error( $response ) ) {
+			$this->logger->sferanet_logs( "Error while adding a passenger to the practice. Passenger: $passenger->surname $passenger->name. Error: " . $response->get_error_message() );
 			throw new \Exception( "Error while adding a passenger to the practice. Passenger: $passenger->surname $passenger->name. Error: " . $response->get_error_message(), 1 );
 		}
 		$response_code = wp_remote_retrieve_response_code( $response );
@@ -374,11 +395,14 @@ class Sferanet_WordPress_Integration_Admin {
 				$msg = 'Generic error, debug please.';
 		}
 
-		return array(
+		$response = array(
 			'status' => $status,
 			'msg'    => $msg,
+			'data'   => wp_remote_retrieve_body( $response ),
 		);
+		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
 
+		return $response;
 	}
 
 	/**
@@ -395,10 +419,15 @@ class Sferanet_WordPress_Integration_Admin {
 
 		$ep = '/prt_praticas';
 		$this->validate_token();
+
+		$this->logger->sferanet_logs( 'Creating a new practice.' );
+
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 		include_once 'Practice_Status.php';
+		$options = get_option( 'sferanet-settings' );
+
 		$body = array(
-			'codiceagenzia'      => 'DEMO2',
+			'codiceagenzia'      => $options['agency_code_field'],
 			'tipocattura'        => 'PSCATTURE',
 			// 'passeggeri'      => ['nome e cognome', 'nome2'...],
 			// 'codicecliente'      => 'string',
@@ -448,6 +477,8 @@ class Sferanet_WordPress_Integration_Admin {
 			$body['emailcliente'] = $contractor->email_address;
 		}
 
+		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
+
 		$response = wp_remote_post(
 			$this->base_url . $ep,
 			array(
@@ -456,6 +487,8 @@ class Sferanet_WordPress_Integration_Admin {
 			)
 		);
 		if ( is_wp_error( $response ) ) {
+			$this->logger->sferanet_logs( 'Error while creating a new practice. Error: ' . $response->get_error_message() );
+
 			throw new \Exception( 'Error while creating a new practice. Error: ' . $response->get_error_message(), 1 );
 		}
 
@@ -479,11 +512,14 @@ class Sferanet_WordPress_Integration_Admin {
 				break;
 		}
 
-		return array(
+		$response = array(
 			'status' => $status,
 			'msg'    => $msg,
 			'data'   => $data,
 		);
+		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+
+		return $response;
 	}
 
 
@@ -498,10 +534,14 @@ class Sferanet_WordPress_Integration_Admin {
 
 		$ep = '/accounts';
 		$this->validate_token();
+
+		$this->logger->sferanet_logs( 'Creating a new account. ' );
+
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 		include_once 'Account_Status.php';
-		$body = array(
-			'codiceagenzia'      => 'DEMO2',
+		$options = get_option( 'sferanet-settings' );
+		$body    = array(
+			'codiceagenzia'      => $options['agency_code_field'],
 			'tipocattura'        => 'PSCATTURE',
 			'cognome'            => $customer->surname, // Surname or business name
 			'flagpersonafisica'  => $customer->is_physical_person,
@@ -539,6 +579,8 @@ class Sferanet_WordPress_Integration_Admin {
 			}
 		}
 
+		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
+
 		$response = wp_remote_post(
 			$this->base_url . $ep,
 			array(
@@ -548,6 +590,7 @@ class Sferanet_WordPress_Integration_Admin {
 		);
 
 		if ( is_wp_error( $response ) ) {
+			$this->logger->sferanet_logs( 'Error while creating a new customer. Error: ' . $response->get_error_message() );
 			throw new \Exception( 'Error while creating a new customer. Error: ' . $response->get_error_message(), 1 );
 		}
 
@@ -570,12 +613,15 @@ class Sferanet_WordPress_Integration_Admin {
 				break;
 		}
 
-		return array(
+		$response = array(
 			'status' => $status,
 			'msg'    => $msg,
 			'data'   => $data,
 		);
 
+		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+
+		return $response;
 	}
 
 	public function add_service( $service, $practice_id = '' ) {
@@ -635,6 +681,8 @@ class Sferanet_WordPress_Integration_Admin {
 		$this->validate_token();
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 		include_once 'Account_Status.php';
+		$this->logger->sferanet_logs( "Associating a new service to the practice $practice_id" );
+
 		$body = array(
 			'annullata'           => 0,
 			'datacreazione'       => $date,
@@ -701,6 +749,8 @@ class Sferanet_WordPress_Integration_Admin {
 			}
 		}
 
+		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
+
 		$response = wp_remote_post(
 			$this->base_url . $ep,
 			array(
@@ -710,6 +760,7 @@ class Sferanet_WordPress_Integration_Admin {
 		);
 
 		if ( is_wp_error( $response ) ) {
+			$this->logger->sferanet_logs( 'Error while associating a service to a practice. Error: ' . $response->get_error_message() );
 			throw new \Exception( 'Error while associating a service to a practice. Error: ' . $response->get_error_message(), 1 );
 		}
 
@@ -736,11 +787,15 @@ class Sferanet_WordPress_Integration_Admin {
 				$msg = 'Generic error, debug please';
 		}
 
-		return array(
+		$response = array(
 			'status' => $status,
 			'msg'    => $msg,
 			'data'   => $data,
 		);
+
+		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+
+		return $response;
 	}
 
 	public function add_quote_service( $sold_services, $service_id ) {
@@ -757,6 +812,7 @@ class Sferanet_WordPress_Integration_Admin {
 		$ep = '/prt_praticaservizioquotas';
 		$this->validate_token();
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
+		$this->logger->sferanet_logs( 'Adding quote to service with id ' . $service_id );
 
 		$body = array(
 			'descrizionequota'                 => 'Test descrizione',
@@ -790,7 +846,10 @@ class Sferanet_WordPress_Integration_Admin {
 			if ( isset( $customer->$obj_key ) ) {
 				$body[ $mgr_sw_key ] = $customer->$obj_key;
 			}
-		} */
+		}
+		*/
+
+		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
 
 		$response = wp_remote_post(
 			$this->base_url . $ep,
@@ -801,6 +860,8 @@ class Sferanet_WordPress_Integration_Admin {
 		);
 
 		if ( is_wp_error( $response ) ) {
+			$this->logger->sferanet_logs( 'Error while creating a practice quote related to a service. Error: ' . $response->get_error_message() );
+
 			throw new \Exception( 'Error while creating a practice quote related to a service. Error: ' . $response->get_error_message(), 1 );
 		}
 
@@ -827,12 +888,13 @@ class Sferanet_WordPress_Integration_Admin {
 				$msg = 'Generic error, debug please';
 		}
 
-		return array(
+		$response = array(
 			'status' => $status,
 			'msg'    => $msg,
 			'data'   => $data,
 		);
-
+		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		return $response;
 	}
 
 	public function add_financial_transaction( $financial_transaction, $practice_id, $order_id = null ) {
@@ -859,10 +921,12 @@ class Sferanet_WordPress_Integration_Admin {
 		$ep = '/mov_finanziarios';
 		$this->validate_token();
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
+		$this->logger->sferanet_logs( 'Adding financial transaction.' );
+
 		include_once 'Financial_Transaction_Status.php';
 		include_once 'Movement_Type.php';
 		$body = array(
-			'codiceagenzia' => 'DEMO2',
+			'codiceagenzia' => $options['agency_code_field'],
 			'tipocattura'   => 'PSCATTURE',
 			'externalid'    => $order_id ?? wp_unique_id(),
 			'codcausale'    => 'POS', // TODO: testare se corretto
@@ -891,7 +955,9 @@ class Sferanet_WordPress_Integration_Admin {
 			if ( isset( $customer->$obj_key ) ) {
 				$body[ $mgr_sw_key ] = $customer->$obj_key;
 			}
-		} */
+		}
+		*/
+		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
 
 		$response = wp_remote_post(
 			$this->base_url . $ep,
@@ -902,6 +968,7 @@ class Sferanet_WordPress_Integration_Admin {
 		);
 
 		if ( is_wp_error( $response ) ) {
+			$this->logger->sferanet_logs( 'Error while creating a transactional movement. Error: ' . $response->get_error_message() );
 			throw new \Exception( 'Error while creating a transactional movement. Error: ' . $response->get_error_message(), 1 );
 		}
 
@@ -928,12 +995,15 @@ class Sferanet_WordPress_Integration_Admin {
 				$msg = 'Generic error, debug please';
 		}
 
-		return array(
+
+		$response = array(
 			'status' => $status,
 			'msg'    => $msg,
 			'data'   => $data,
 		);
 
+		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		return $response;
 	}
 
 	private function build_headers() {
