@@ -47,6 +47,7 @@ class Sferanet_WordPress_Integration_Admin {
 	 */
 	protected $token;
 
+	protected $options;
 	/**
 	 * Get the value of token
 	 */
@@ -90,6 +91,7 @@ class Sferanet_WordPress_Integration_Admin {
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
 		$this->base_url    = 'https://catture.partnersolution.it';
+		$this->options     = get_option( 'sferanet-settings' );
 
 		$this->logger = Sferanet_Wordpress_Integration_Logs_Admin::getInstance();
 		try {
@@ -349,28 +351,31 @@ class Sferanet_WordPress_Integration_Admin {
 		$this->validate_token();
 		$this->logger->sferanet_logs( 'Calling add_passenger_practice API.' );
 		$body = array(
-			'pratica'      => "prt_praticas/$practice_id",
-			'cognomepax'   => $passenger->surname,
-			'nomepax'      => $passenger->name,
-			'annullata'    => 0, // ?
-			'iscontraente' => 0,
+			'pratica'       => "prt_praticas/$practice_id",
+			'cognomepax'    => $passenger->surname,
+			'nomepax'       => $passenger->name,
+			'annullata'     => 0, // ?
+			'iscontraente'  => 0,
+			'datadinascita' => $passenger->birthday,
+			'sesso'         => $passenger->sex,
 		);
 
-		if ( isset( $passenger->birthday ) ) {
-			$body['datadinascita'] = $passenger->birthday;
+		if ( isset( $passenger->phone ) ) {
+			$body['cellulare'] = $passenger->phone;
 		}
-		if ( isset( $passenger->sex ) ) {
-			$body['sesso'] = $passenger->sex;
+		/*
+		if ( isset( $passenger->email_address ) ) {
+			$body['email'] = $passenger->email_address;
 		}
-		if ( isset( $passenger->phone_number ) ) {
-			$body['cellulare'] = $passenger->phone_number;
+		*/
+		/*
+		if ( isset( $passenger->birthplace ) ) {
+			$body['luogo_nascita'] = $passenger->birthplace;
 		}
+		*/
 
 		if ( isset( $passenger->attachments ) ) {
-			// TODO: Call api for inserting attachments for each att.
-			foreach ( $passenger->attachments as $attachment ) {
-				$this->add_allegatos();
-			}
+			$this->add_allegatos( $passenger->attachments, $practice_id );
 		}
 
 		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
@@ -431,10 +436,9 @@ class Sferanet_WordPress_Integration_Admin {
 
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 		include_once 'statuses/Practice_Status.php';
-		$options = get_option( 'sferanet-settings' );
 
 		$body = array(
-			'codiceagenzia'      => $options['agency_code_field'],
+			'codiceagenzia'      => $this->options['agency_code_field'],
 			'tipocattura'        => 'PSCATTURE',
 			// 'passeggeri'      => ['nome e cognome', 'nome2'...],
 			// 'codicecliente'      => 'string',
@@ -1014,74 +1018,82 @@ class Sferanet_WordPress_Integration_Admin {
 		return $response;
 	}
 
-	public function add_allegatos() {
+	/**
+	 * Undocumented function
+	 *
+	 * @param [type] $attachments
+	 * @param [type] $practice_id
+	 * @return void
+	 */
+	public function add_allegatos( $attachments, $practice_id ) {
 		$ep = '/allegatos';
 		$this->validate_token();
-		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 		$this->logger->sferanet_logs( 'Adding attachments.' );
-
-		$options = get_option( 'sferanet-settings' );
-
-		$body = array();
-
+		$body            = array();
+		$date            = '';
 		$optional_values = array(
-			'id'                            => 'string',
-			'agenziaid'                     => 'string',
-			'allegatotipoid'                => 'string',
+			// 'id'                            => 'string',
+			// 'agenziaid'                     => 'string',
+			// 'allegatotipoid'                => 'string',
 			'visibileingestionedocumentale' => 1,
-			'note'                          => 'string',
-			'uploaddownload'                => 'string',
-			'nometabella'                   => 'string',
-			'idrecord'                      => 'string',
-			'subidrecord'                   => 'string',
-			'nomefile'                      => 'string',
-			'descrizione'                   => 'string',
-			'datainserimento'               => $date,
-			'pubblico'                      => 1,
+			'note'                          => '',
+			'uploaddownload'                => '',
+			'nometabella'                   => 'PRT_Pratica',
+			'idrecord'                      => $practice_id,
+			// 'subidrecord'                   => '',
+			'descrizione'                   => '',
+			'pubblico'                      => 0,
 			'flagannullato'                 => false,
-			'data'                          => $date,
-			'stato'                         => 'string',
-			'codiceagenzia'                 => 'string',
-			'user'                          => 'string',
-			'userId'                        => 0,
+			'stato'                         => Generic_Status::INSERTING,
+			'codiceagenzia'                 => $this->options['agency_code_field'],
 		);
+		foreach ( $attachments as $i => $url_attachment ) {
 
-		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
+			$date             = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 
-		$response = wp_remote_post(
-			$this->base_url . $ep,
-			array(
-				'body'    => wp_json_encode( $body ),
-				'headers' => $this->build_headers(),
-			)
-		);
+			$attachment       = file_get_contents( parse_url($url_attachment, PHP_URL_PATH ) );
 
-		if ( is_wp_error( $response ) ) {
-			$this->logger->sferanet_logs( 'Error while adding an attachment. Error: ' . $response->get_error_message() );
-			throw new \Exception( 'Error while adding an attachment. Error: ' . $response->get_error_message(), 1 );
-		}
 
-		$response_code = wp_remote_retrieve_response_code( $response );
-		$status        = false;
-		$response_body = json_decode( wp_remote_retrieve_body( $response ) );
+			$body             = array( 'data' => base64_encode( $attachment ) );
+			$body             = array_merge( $body, $optional_values );
+			$body['nomefile'] = "attachment_{$i}"; // _{$practice_id}_
+			$body['datainserimento'] = $date; // _{$practice_id}_
 
-		switch ( $response_code ) {
-			case 201:
-				$status = true;
-				$msg    = 'Attachments created correctly';
-				$data   = array(
+			$response = wp_remote_post(
+				$this->base_url . $ep,
+				array(
+					'body'    => wp_json_encode( $body ),
+					'headers' => $this->build_headers(),
+				)
+			);
+
+			if ( is_wp_error( $response ) ) {
+				$this->logger->sferanet_logs( 'Error while adding an attachment. Error: ' . $response->get_error_message() );
+				throw new \Exception( 'Error while adding an attachment. Error: ' . $response->get_error_message(), 1 );
+			}
+
+			$response_code = wp_remote_retrieve_response_code( $response );
+			$status        = false;
+			$response_body = json_decode( wp_remote_retrieve_body( $response ) );
+
+			switch ( $response_code ) {
+				case 201:
+					$status = true;
+					$msg    = 'Attachments created correctly';
+					$data   = array(
 					// 'financial_movement' => $response_body,
-				);
-				break;
-			case 400:
-				$msg  = 'Invalid input';
-				$data = $response_body;
-				break;
-			case 404:
-				$msg = 'Resource not found.';
-				break;
-			default:
-				$msg = 'Generic error, debug please';
+					);
+					break;
+				case 400:
+					$msg  = 'Invalid input';
+					$data = $response_body;
+					break;
+				case 404:
+					$msg = 'Resource not found.';
+					break;
+				default:
+					$msg = 'Generic error, debug please';
+			}
 		}
 
 		$response = array(
