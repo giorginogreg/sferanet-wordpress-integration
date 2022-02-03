@@ -162,7 +162,6 @@ class Sferanet_WordPress_Integration_Admin {
 		);
 	}
 
-
 	public function admin_register_setting() {
 
 		register_setting( 'sferanet-settings-group', 'sferanet-settings' );
@@ -181,20 +180,46 @@ class Sferanet_WordPress_Integration_Admin {
 			'sferanet-settings-group', // page slug
 			'settings', // section ID
 		);
+		add_settings_field(
+			'agency_id_field',
+			__( 'Agency ID', 'sferanet' ),
+			array( $this, 'agency_id_field_render' ),
+			'sferanet-settings-group', // page slug
+			'settings', // section ID
+		);
+		add_settings_field(
+			'attachment_type_id_field',
+			__( 'Attachment Type ID', 'sferanet' ),
+			array( $this, 'attachment_type_id_field_render' ),
+			'sferanet-settings-group', // page slug
+			'settings', // section ID
+		);
 	}
 
 	/**
 	 * Settings page display callback.
 	 */
-	private function settings_page() {
+	function settings_page() {
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/partials/settings.php';
 	}
 
-	private function agency_code_field_render() {
-		$options = get_option( 'sferanet-settings' ); ?>
-		<input type='text' name='sferanet-settings[agency_code_field]' value='<?php echo $options['agency_code_field']; ?>'>
+	function agency_code_field_render() {
+		?>
+		<input type='text' name='sferanet-settings[agency_code_field]' value='<?php echo $this->options['agency_code_field']; ?>'>
 		<?php
 	}
+	function agency_id_field_render() {
+		?>
+		<input type='text' name='sferanet-settings[agency_id_field]' value='<?php echo $this->options['agency_id_field']; ?>'>
+		<?php
+	}
+	function attachment_type_id_field_render() {
+		?>
+		<input type='text' name='sferanet-settings[attachment_type_id_field]' value='<?php echo $this->options['attachment_type_id_field']; ?>'>
+		<?php
+	}
+
+
 	/**
 	 * Make login into management software and return the token
 	 *
@@ -836,7 +861,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'codiceisovalutaricavo'            => 'EUR', // ??
 			'commissioniattivevalutaprimaria'  => 0,
 			'commissionipassivevalutaprimaria' => 0,
-			'progressivo'                      => 0, // TODO: Cos'è?
+			'progressivo'                      => 0,
 			'annullata'                        => 0,
 			'servizio'                         => "prt_praticaservizios/$service_id",
 		);
@@ -1033,15 +1058,14 @@ class Sferanet_WordPress_Integration_Admin {
 		$date            = '';
 		$optional_values = array(
 			// 'id'                            => 'string',
-			// 'agenziaid'                     => 'string',
-			// 'allegatotipoid'                => 'string',
+			'agenziaid'                     => $this->options['agency_id_field'],
+			'allegatotipoid'                => $this->options['attachment_type_id_field'],
 			'visibileingestionedocumentale' => 1,
 			'note'                          => '',
-			'uploaddownload'                => '',
+			// 'uploaddownload'                => '',
 			'nometabella'                   => 'PRT_Pratica',
 			'idrecord'                      => $practice_id,
 			// 'subidrecord'                   => '',
-			'descrizione'                   => '',
 			'pubblico'                      => 0,
 			'flagannullato'                 => false,
 			'stato'                         => Generic_Status::INSERTING,
@@ -1049,15 +1073,15 @@ class Sferanet_WordPress_Integration_Admin {
 		);
 		foreach ( $attachments as $i => $url_attachment ) {
 
-			$date             = gmdate( 'Y-m-d\TH:i:s.v\Z' );
+			$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 
-			$attachment       = file_get_contents( parse_url($url_attachment, PHP_URL_PATH ) );
+			$attachment = file_get_contents( parse_url( $url_attachment, PHP_URL_PATH ) );
 
-
-			$body             = array( 'data' => base64_encode( $attachment ) );
-			$body             = array_merge( $body, $optional_values );
-			$body['nomefile'] = "attachment_{$i}"; // _{$practice_id}_
-			$body['datainserimento'] = $date; // _{$practice_id}_
+			$body                    = array( 'data' => base64_encode( $attachment ) );
+			$body                    = array_merge( $body, $optional_values );
+			$body['nomefile']        = "attachment_{$i}"; // _{$practice_id}_
+			$body['datainserimento'] = $date;
+			$body['descrizione']     = 'Attachment';
 
 			$response = wp_remote_post(
 				$this->base_url . $ep,
@@ -1102,6 +1126,55 @@ class Sferanet_WordPress_Integration_Admin {
 			'data'   => $data,
 		);
 
+		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		return $response;
+	}
+
+	public function finalize_practice( $practice_id ) {
+		$this->logger->sferanet_logs( 'Finalizing practice ' . $practice_id );
+
+		$ep = "/prt_praticas/$practice_id";
+
+		$body = array(
+			'stato' => Practice_Status::INSERTING,
+		);
+
+		$args = array(
+			'body'    => wp_json_encode( $body ),
+			'headers' => $this->build_headers(),
+			'method'  => 'PUT',
+		);
+
+		$response      = wp_remote_request( $this->base_url . $ep, $args );
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$status        = false;
+		$response_body = json_decode( wp_remote_retrieve_body( $response ) );
+
+		switch ( $response_code ) {
+			case 201:
+				$status = true;
+				$msg    = 'Attachments created correctly';
+				$data   = array(
+				// 'financial_movement' => $response_body,
+				);
+				break;
+			case 400:
+				$msg  = 'Invalid input';
+				$data = $response_body;
+				break;
+			case 404:
+				$msg = 'Resource not found.';
+				break;
+			default:
+				$msg  = 'Generic error, debug please';
+				$data = $response_body;
+		}
+
+		$response = array(
+			'status' => $status,
+			'msg'    => $msg,
+			'data'   => $data,
+		);
 		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
 		return $response;
 	}
