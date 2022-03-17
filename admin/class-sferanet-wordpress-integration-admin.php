@@ -236,8 +236,8 @@ class Sferanet_WordPress_Integration_Admin {
 			$this->base_url . $ep,
 			array(
 				'body' => array(
-					'_username' => 'grifo',
-					'_password' => 'aeUDFGkKn',
+					'_username' => getenv('SFERANET_USERNAME'),
+					'_password' => getenv('SFERANET_PASSWORD'),
 				),
 			)
 		);
@@ -257,6 +257,51 @@ class Sferanet_WordPress_Integration_Admin {
 			$this->logger->sferanet_logs( 'Error Processing Request: token not set in response body' );
 
 			throw new \Exception( 'Error Processing Request: token not set in response body', 1 );
+		}
+
+	}
+
+	/**
+	 * Make login into management software and return the token
+	 *
+	 * @throws \Exception Method that throws exception if the http request had some trouble or if the credentials are not valid.
+	 * @return Token
+	 */
+	public function login_facilews() {
+
+		$token_from_db = get_option('sferanet_facilews_token');
+		if( $token_from_db !== '')
+			return $token_from_db;
+
+		$this->logger->sferanet_logs( 'Logging into facilews...' );
+
+		$ep = 'http://facilews.partnersolution.it/public/login.php';
+
+		$response = wp_remote_post(
+			$ep,
+			array(
+				'body' => array(
+					'username' => getenv('FACILEWS_USERNAME'),
+					'password' => getenv('FACILEWS_PASSWORD'),
+				),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			throw new \Exception( 'Error during login call in Sfera Net: ' . $response->get_error_message(), 1 );
+		}
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		$is_token_in_body = isset( $body['jwt'] );
+		if ( $is_token_in_body ) {
+			$this->logger->sferanet_logs( 'Token from facilews successfully acquired.' );
+			update_option( 'sferanet_facilews_token', $body['jwt']  );
+
+			return $body['jwt'];
+		} else {
+			// It can be also credentials mismatch
+			$this->logger->sferanet_logs( 'Error Processing Request: token from facilews not set in response body' );
+
+			throw new \Exception( 'Error Processing Request: token from facilews not set in response body', 1 );
 		}
 
 	}
@@ -341,17 +386,23 @@ class Sferanet_WordPress_Integration_Admin {
 	 * @return bool | stdClass
 	 */
 	public function get_user_by_id( $id, $is_business = false ) {
-		$result   = $this->get_all_accounts();
-		$accounts = $result['data'];
-		$found    = false;
-		$field    = $is_business ? 'partitaiva' : 'codicefiscale';
-		foreach ( $accounts as $account ) {
-			if ( $account->$field === $id ) {
-				return $account;
-			}
-		}
 
-		return $found;
+		$field    = $is_business ? 'piva' : 'cf';
+		$token = $this->login_facilews();
+		$ep = "https://facilews3.partnersolution.it/Api/Rest/Account/{$this->options['agency_code_field']}";
+		$ep .= "&$field=$id";
+
+		$this->logger->sferanet_logs( 'Getting user by id at EP ' . $ep);
+
+		$response = wp_remote_get(
+			$ep,
+			array(
+				'headers' => $this->build_headers($token),
+			)
+		);
+		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+
+		return $response;
 	}
 
 	/**
@@ -1179,9 +1230,9 @@ class Sferanet_WordPress_Integration_Admin {
 		return $response;
 	}
 
-	private function build_headers() {
+	private function build_headers($token = null ) {
 		return array(
-			'Authorization' => 'Bearer ' . $this->get_token(),
+			'Authorization' => 'Bearer ' . $token ?? $this->get_token(),
 			'Content-Type'  => 'application/json',
 		);
 	}
