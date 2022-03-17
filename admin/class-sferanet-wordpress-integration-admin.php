@@ -464,7 +464,7 @@ class Sferanet_WordPress_Integration_Admin {
 
 		$body = array(
 			'codiceagenzia'      => $this->options['agency_code_field'],
-			'tipocattura'        => 'PSCATTURE',
+			'tipocattura'        => Sferanet_WordPress_Integration::CAPTURE_TYPE,
 			// 'passeggeri'      => ['nome e cognome', 'nome2'...],
 			// 'codicecliente'      => 'string',
 			// 'externalid'         => '123456mioid',
@@ -578,7 +578,7 @@ class Sferanet_WordPress_Integration_Admin {
 		$options = get_option( 'sferanet-settings' );
 		$body    = array(
 			'codiceagenzia'      => $options['agency_code_field'],
-			'tipocattura'        => 'PSCATTURE',
+			'tipocattura'        => Sferanet::$CAPTURE_TYPE,
 			'cognome'            => $customer->surname, // Surname or business name
 			'flagpersonafisica'  => $customer->is_physical_person,
 			'codicefiscale'      => $customer->fiscal_code, // Can be also VAT number
@@ -965,7 +965,7 @@ class Sferanet_WordPress_Integration_Admin {
 
 		$body = array(
 			'codiceagenzia' => $options['agency_code_field'],
-			'tipocattura'   => 'PSCATTURE',
+			'tipocattura'   => Sferanet::$CAPTURE_TYPE,
 			'externalid'    => $order_id ?? wp_unique_id(),
 			'codcausale'    => 'POS', // TODO: testare se corretto
 			'datamovimento' => $date,

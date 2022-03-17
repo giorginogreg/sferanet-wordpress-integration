@@ -56,6 +56,7 @@ class Sferanet_WordPress_Integration {
 	 */
 	protected $version;
 
+	public const CAPTURE_TYPE = "GRIFOWOOWP";
 	/**
 	 * Define the core functionality of the plugin.
 	 *
