@@ -402,7 +402,7 @@ class Sferanet_WordPress_Integration_Admin {
 		);
 		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
 
-		return $response;
+		return wp_remote_retrieve_body( $response );
 	}
 
 	/**
