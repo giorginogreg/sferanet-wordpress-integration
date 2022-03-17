@@ -386,7 +386,7 @@ class Sferanet_WordPress_Integration_Admin {
 	 * @return bool | stdClass
 	 */
 	public function get_user_by_id( $id, $is_business = false ) {
-
+		//TODO: Test
 		$field    = $is_business ? 'piva' : 'cf';
 		$token = $this->login_facilews();
 		$ep = "https://facilews3.partnersolution.it/Api/Rest/Account/{$this->options['agency_code_field']}";
