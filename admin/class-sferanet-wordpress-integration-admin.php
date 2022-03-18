@@ -85,7 +85,7 @@ class Sferanet_WordPress_Integration_Admin {
 	 * @param string $plugin_name The name of this plugin.
 	 * @param string $version     The version of this plugin.
 	 */
-	public function __construct( $plugin_name, $version ) {
+	public function __construct( $plugin_name = "Sferanet", $version = "1.0.0") {
 
 		require_once plugin_dir_path( __FILE__ ) . '../logs/class-sferanet-wordpress-integration-logs-admin.php';
 		$this->plugin_name = $plugin_name;
@@ -242,7 +242,8 @@ class Sferanet_WordPress_Integration_Admin {
 			)
 		);
 		if ( is_wp_error( $response ) ) {
-			throw new \Exception( 'Error during login call in Sfera Net: ' . $response->get_error_message(), 1 );
+			$this->logger->sferanet_logs( 'Token successfully acquired.' );
+			//throw new \Exception( 'Error during login call in Sfera Net: ' . $response->get_error_message(), 1 );
 		}
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
@@ -254,9 +255,9 @@ class Sferanet_WordPress_Integration_Admin {
 			return $body['token'];
 		} else {
 			// It can be also credentials mismatch
-			$this->logger->sferanet_logs( 'Error Processing Request: token not set in response body' );
+			$this->logger->sferanet_logs( 'Error Processing Request: token not set in response body. JSON from response: ' . json_encode($body) );
 
-			throw new \Exception( 'Error Processing Request: token not set in response body', 1 );
+			//throw new \Exception( 'Error Processing Request: token not set in response body', 1 );
 		}
 
 	}
@@ -270,7 +271,7 @@ class Sferanet_WordPress_Integration_Admin {
 	public function login_facilews() {
 
 		$token_from_db = get_option('sferanet_facilews_token');
-		if( $token_from_db !== '')
+		if( $token_from_db)
 			return $token_from_db;
 
 		$this->logger->sferanet_logs( 'Logging into facilews...' );
@@ -386,11 +387,10 @@ class Sferanet_WordPress_Integration_Admin {
 	 * @return bool | stdClass
 	 */
 	public function get_user_by_id( $id, $is_business = false ) {
-		//TODO: Test
 		$field    = $is_business ? 'piva' : 'cf';
 		$token = $this->login_facilews();
 		$ep = "https://facilews3.partnersolution.it/Api/Rest/Account/{$this->options['agency_code_field']}";
-		$ep .= "&$field=$id";
+		$ep .= "?$field=$id";
 
 		$this->logger->sferanet_logs( 'Getting user by id at EP ' . $ep);
 
@@ -402,7 +402,7 @@ class Sferanet_WordPress_Integration_Admin {
 		);
 		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
 
-		return wp_remote_retrieve_body( $response );
+		return json_decode(wp_remote_retrieve_body( $response ));
 	}
 
 	/**
