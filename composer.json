@@ -1,0 +1,20 @@
+{
+  "name": "giorginogreg/sferanet-wordpress-integration",
+  "description": "Integration between Wordpress and Sferanet for make https requests to the management sw",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Gregorio Giorgino",
+      "email": "giorgino.greg@gmail.com"
+    }
+  ],
+  "require": {
+
+  },
+  "autoload": {
+    "psr-4": {
+      "Sferanet_Wordpress_Integration\\": "app/"
+    }
+  }
+}
