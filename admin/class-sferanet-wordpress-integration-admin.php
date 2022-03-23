@@ -51,13 +51,22 @@ class Sferanet_WordPress_Integration_Admin {
 	 */
 	protected $token;
 
+    /**
+	 * Token used for researching a single user
+	 *
+	 * @var [string] Token used for auth in API calls
+	 */
+	protected $facilews_token;
+
+
+
 	protected $options;
 	/**
 	 * Get the value of token
 	 */
 	public function get_token() {
 
-		return $token ?? get_option( 'sferanet_token' );
+		return $this->token ?? get_option( 'sferanet_token' );
 	}
 	/**
 	 * Set the value of token
@@ -69,6 +78,25 @@ class Sferanet_WordPress_Integration_Admin {
 	public function set_token( $token ) {
 		update_option( 'sferanet_token', $token );
 		$this->token = $token;
+		return $this;
+	}
+    /**
+	 * Get the value of token
+	 */
+	public function get_facilews_token() {
+
+		return $this->facilews_token ?? get_option( 'sferanet_facilews_token' );
+	}
+	/**
+	 * Set the value of token
+	 *
+	 * @param mixed $token JWT token.
+	 *
+	 * @return [type]
+	 */
+	public function set_facilews_token( $token ) {
+		update_option( 'sferanet_facilews_token', $token );
+		$this->facilews_token = $token;
 		return $this;
 	}
 
@@ -121,6 +149,7 @@ class Sferanet_WordPress_Integration_Admin {
 		 * in that particular class.
 		 *
 		 * The Sferanet_Wordpress_Integration_Loader will then create the relationship
+		 * between the defined hooks and the functions defined in this
 		 * between the defined hooks and the functions defined in this
 		 * class.
 		 */
@@ -274,10 +303,6 @@ class Sferanet_WordPress_Integration_Admin {
 	 */
 	public function login_facilews() {
 
-		$token_from_db = get_option('sferanet_facilews_token');
-		if( $token_from_db)
-			return $token_from_db;
-
 		$this->logger->sferanet_logs( 'Logging into facilews...' );
 
 		$ep = 'http://facilews.partnersolution.it/public/login.php';
@@ -300,15 +325,13 @@ class Sferanet_WordPress_Integration_Admin {
 		if ( $is_token_in_body ) {
 			$this->logger->sferanet_logs( 'Token from facilews successfully acquired.' );
 			update_option( 'sferanet_facilews_token', $body['jwt']  );
+            $this->set_facilews_token( $body['jwt'] );
 
 			return $body['jwt'];
 		} else {
 			// It can be also credentials mismatch
 			$this->logger->sferanet_logs( 'Error Processing Request: token from facilews not set in response body' );
-
-			throw new \Exception( 'Error Processing Request: token from facilews not set in response body', 1 );
 		}
-
 	}
 
 	/**
@@ -343,6 +366,16 @@ class Sferanet_WordPress_Integration_Admin {
 			$this->logger->sferanet_logs( 'Token refreshed successfully' );
 		}
 	}
+
+    public function validate_facilews_token() {
+        if ( ! $this->is_token_valid( $this->get_facilews_token() ) ) {
+            $this->logger->sferanet_logs( "FacileWS Token Not Valid, value: {$this->get_facilews_token()}" );
+            $this->logger->sferanet_logs( 'Refreshing token...' );
+
+            $this->login_facilews();
+            $this->logger->sferanet_logs( 'FacileWS Token refreshed successfully' );
+        }
+    }
 
 	private function get_all_accounts( $contractor = null ) {
 		$ep = '/accounts';
@@ -392,7 +425,7 @@ class Sferanet_WordPress_Integration_Admin {
 	 */
 	public function get_user_by_id( $id, $is_business = false ) {
 		$field    = $is_business ? 'piva' : 'cf';
-		$token = $this->login_facilews();
+		$this->validate_facilews_token();
 		$ep = "https://facilews3.partnersolution.it/Api/Rest/Account/{$this->options['agency_code_field']}";
 		$ep .= "?$field=$id";
 
@@ -401,10 +434,10 @@ class Sferanet_WordPress_Integration_Admin {
 		$response = wp_remote_get(
 			$ep,
 			array(
-				'headers' => $this->build_headers($token),
+				'headers' => $this->build_headers($this->get_facilews_token()),
 			)
 		);
-		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		$this->logger->sferanet_logs( 'Response: ' . json_encode( wp_remote_retrieve_body( $response ) ) );
 
 		return json_decode(wp_remote_retrieve_body( $response ));
 	}
@@ -633,7 +666,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'codiceagenzia'      => $options['agency_code_field'],
 			'tipocattura'        => Sferanet_WordPress_Integration::CAPTURE_TYPE,
 			'cognome'            => $customer->surname, // Surname or business name
-			'flagpersonafisica'  => $customer->is_physical_person,
+			'flagpersonafisica'  => (int) $customer->is_physical_person,
 			'codicefiscale'      => $customer->fiscal_code, // Can be also VAT number
 			'iscliente'          => 0,
 			'isfornitore'        => 0,
@@ -669,12 +702,12 @@ class Sferanet_WordPress_Integration_Admin {
 		}
 
 		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
-
+        $headers = $this->build_headers();
 		$response = wp_remote_post(
 			$this->base_url . $ep,
 			array(
 				'body'    => wp_json_encode( $body ),
-				'headers' => $this->build_headers(),
+				'headers' => $headers,
 			)
 		);
 
@@ -684,6 +717,7 @@ class Sferanet_WordPress_Integration_Admin {
 		}
 
 		$response_code = wp_remote_retrieve_response_code( $response );
+        $this->logger->sferanet_logs( "Response with code $response_code after parsing: " .  wp_remote_retrieve_body( $response ) );
 		$status        = false;
 		switch ( $response_code ) {
 			case 201:
@@ -1202,9 +1236,9 @@ class Sferanet_WordPress_Integration_Admin {
 		$response_body = json_decode( wp_remote_retrieve_body( $response ) );
 
 		switch ( $response_code ) {
-			case 201:
+			case 200:
 				$status = true;
-				$msg    = 'Attachments created correctly';
+				$msg    = 'Practice finalized correctly';
 				$data   = array(
 				// 'financial_movement' => $response_body,
 				);
@@ -1230,9 +1264,10 @@ class Sferanet_WordPress_Integration_Admin {
 		return $response;
 	}
 
-	private function build_headers($token = null ) {
+	private function build_headers($token = null) {
+        $ttoken = $token ?? $this->get_token();
 		return array(
-			'Authorization' => 'Bearer ' . $token ?? $this->get_token(),
+			'Authorization' => 'Bearer ' . $ttoken,
 			'Content-Type'  => 'application/json',
 		);
 	}
