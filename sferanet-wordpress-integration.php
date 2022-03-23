@@ -78,5 +78,6 @@ function run_sferanet_wordpress_integration() {
 	$plugin = new Sferanet_Wordpress_Integration();
 	$plugin->run();
 
+	require_once "vendor/autoload.php";
 }
 run_sferanet_wordpress_integration();
