@@ -9,7 +9,11 @@
  * @subpackage Sferanet_Wordpress_Integration/admin
  */
 
-use Firebase\JWT\JWT;
+use Sferanet_Wordpress_Integration\Statuses\Account_Status;
+use Sferanet_Wordpress_Integration\Statuses\Financial_Transaction_Status;
+use Sferanet_Wordpress_Integration\Statuses\Generic_Status;
+use Sferanet_Wordpress_Integration\Statuses\Practice_Status;
+use Sferanet_Wordpress_Integration\Types\Movement_Type;
 
 /**
  * The admin-specific functionality of the plugin.
@@ -511,7 +515,6 @@ class Sferanet_WordPress_Integration_Admin {
 		$this->logger->sferanet_logs( 'Creating a new practice.' );
 
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
-		include_once 'statuses/Practice_Status.php';
 
 		$body = array(
 			'codiceagenzia'      => $this->options['agency_code_field'],
@@ -625,11 +628,10 @@ class Sferanet_WordPress_Integration_Admin {
 		$this->logger->sferanet_logs( 'Creating a new account. ' );
 
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
-		include_once 'statuses/Account_Status.php';
 		$options = get_option( 'sferanet-settings' );
 		$body    = array(
 			'codiceagenzia'      => $options['agency_code_field'],
-			'tipocattura'        => Sferanet::$CAPTURE_TYPE,
+			'tipocattura'        => Sferanet_WordPress_Integration::CAPTURE_TYPE,
 			'cognome'            => $customer->surname, // Surname or business name
 			'flagpersonafisica'  => $customer->is_physical_person,
 			'codicefiscale'      => $customer->fiscal_code, // Can be also VAT number
@@ -767,7 +769,6 @@ class Sferanet_WordPress_Integration_Admin {
 		$ep = '/prt_praticaservizios';
 		$this->validate_token();
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
-		include_once 'statuses/Account_Status.php';
 		$this->logger->sferanet_logs( "Associating a new service to the practice $practice_id" );
 
 		$body = array(
@@ -1010,13 +1011,12 @@ class Sferanet_WordPress_Integration_Admin {
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 		$this->logger->sferanet_logs( 'Adding financial transaction.' );
 
-		include_once 'statuses/Financial_Transaction_Status.php';
-		include_once 'types/Movement_Type.php';
+
 		$options = get_option( 'sferanet-settings' );
 
 		$body = array(
 			'codiceagenzia' => $options['agency_code_field'],
-			'tipocattura'   => Sferanet::$CAPTURE_TYPE,
+			'tipocattura'   => Sferanet_WordPress_Integration::CAPTURE_TYPE,
 			'externalid'    => $order_id ?? wp_unique_id(),
 			'codcausale'    => 'POS', // TODO: testare se corretto
 			'datamovimento' => $date,
