@@ -9,12 +9,13 @@
       "email": "giorgino.greg@gmail.com"
     }
   ],
-  "require": {
-
-  },
   "autoload": {
     "psr-4": {
       "Sferanet_Wordpress_Integration\\": "app/"
     }
+  },
+  "require-dev": {
+    "phpunit/phpunit": "5.7",
+    "frozzare/wp-test-suite": "1.1.1"
   }
 }

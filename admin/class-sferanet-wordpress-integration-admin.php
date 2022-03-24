@@ -211,21 +211,22 @@ class Sferanet_WordPress_Integration_Admin {
 			__( 'Agency code', 'sferanet' ),
 			array( $this, 'agency_code_field_render' ),
 			'sferanet-settings-group', // page slug
-			'settings', // section ID
+			'settings'
+        // section ID
 		);
 		add_settings_field(
 			'agency_id_field',
 			__( 'Agency ID', 'sferanet' ),
 			array( $this, 'agency_id_field_render' ),
 			'sferanet-settings-group', // page slug
-			'settings', // section ID
+			'settings' // section ID
 		);
 		add_settings_field(
 			'attachment_type_id_field',
 			__( 'Attachment Type ID', 'sferanet' ),
 			array( $this, 'attachment_type_id_field_render' ),
 			'sferanet-settings-group', // page slug
-			'settings', // section ID
+			'settings' // section ID
 		);
 	}
 
