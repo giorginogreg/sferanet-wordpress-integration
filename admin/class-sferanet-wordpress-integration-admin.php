@@ -51,7 +51,7 @@ class Sferanet_WordPress_Integration_Admin {
 	 */
 	protected $token;
 
-    /**
+	/**
 	 * Token used for researching a single user
 	 *
 	 * @var [string] Token used for auth in API calls
@@ -73,28 +73,29 @@ class Sferanet_WordPress_Integration_Admin {
 	 *
 	 * @param mixed $token JWT token.
 	 *
-	 * @return [type]
+	 * @return Sferanet_WordPress_Integration_Admin
 	 */
 	public function set_token( $token ) {
 		update_option( 'sferanet_token', $token );
 		$this->token = $token;
 		return $this;
 	}
-    /**
+	/**
 	 * Get the value of token
 	 */
 	public function get_facilews_token() {
 
 		return $this->facilews_token ?? get_option( 'sferanet_facilews_token' );
 	}
+
 	/**
 	 * Set the value of token
 	 *
 	 * @param mixed $token JWT token.
 	 *
-	 * @return [type]
+	 * @return Sferanet_WordPress_Integration_Admin
 	 */
-	public function set_facilews_token( $token ) {
+	public function set_facilews_token( $token ): Sferanet_WordPress_Integration_Admin {
 		update_option( 'sferanet_facilews_token', $token );
 		$this->facilews_token = $token;
 		return $this;
@@ -117,7 +118,7 @@ class Sferanet_WordPress_Integration_Admin {
 	 * @param string $plugin_name The name of this plugin.
 	 * @param string $version     The version of this plugin.
 	 */
-	public function __construct( $plugin_name = "Sferanet", $version = "1.0.0") {
+	public function __construct( $plugin_name = 'Sferanet', $version = '1.0.0' ) {
 
 		require_once plugin_dir_path( __FILE__ ) . '../logs/class-sferanet-wordpress-integration-logs-admin.php';
 		$this->plugin_name = $plugin_name;
@@ -128,7 +129,7 @@ class Sferanet_WordPress_Integration_Admin {
 		$this->logger = Sferanet_Wordpress_Integration_Logs_Admin::getInstance();
 		try {
 			$this->validate_token();
-		} catch ( \Exception $th ) {
+		} catch ( Exception $th ) {
 		 //phpcs:ignore
 		 wp_die( 'Login error: ' . $th->getMessage() );
 		}
@@ -212,7 +213,7 @@ class Sferanet_WordPress_Integration_Admin {
 			array( $this, 'agency_code_field_render' ),
 			'sferanet-settings-group', // page slug
 			'settings'
-        // section ID
+			// section ID
 		);
 		add_settings_field(
 			'agency_id_field',
@@ -239,17 +240,23 @@ class Sferanet_WordPress_Integration_Admin {
 
 	function agency_code_field_render() {
 		?>
-		<input type='text' name='sferanet-settings[agency_code_field]' value='<?php echo $this->options['agency_code_field']; ?>'>
+		<label>
+			<input type='text' name='sferanet-settings[agency_code_field]' value='<?php echo $this->options['agency_code_field']; ?>'>
+		</label>
 		<?php
 	}
 	function agency_id_field_render() {
 		?>
-		<input type='text' name='sferanet-settings[agency_id_field]' value='<?php echo $this->options['agency_id_field']; ?>'>
+		<label>
+			<input type='text' name='sferanet-settings[agency_id_field]' value='<?php echo $this->options['agency_id_field']; ?>'>
+		</label>
 		<?php
 	}
 	function attachment_type_id_field_render() {
 		?>
-		<input type='text' name='sferanet-settings[attachment_type_id_field]' value='<?php echo $this->options['attachment_type_id_field']; ?>'>
+		<label>
+			<input type='text' name='sferanet-settings[attachment_type_id_field]' value='<?php echo $this->options['attachment_type_id_field']; ?>'>
+		</label>
 		<?php
 	}
 
@@ -257,8 +264,8 @@ class Sferanet_WordPress_Integration_Admin {
 	/**
 	 * Make login into management software and return the token
 	 *
-	 * @throws \Exception Method that throws exception if the http request had some trouble or if the credentials are not valid.
-	 * @return Token
+	 * @throws Exception Method that throws exception if the http request had some trouble or if the credentials are not valid.
+	 * @return string|bool Token
 	 */
 	public function login_sferanet() {
 
@@ -270,14 +277,14 @@ class Sferanet_WordPress_Integration_Admin {
 			$this->base_url . $ep,
 			array(
 				'body' => array(
-					'_username' => getenv('SFERANET_USERNAME'),
-					'_password' => getenv('SFERANET_PASSWORD'),
+					'_username' => getenv( 'SFERANET_USERNAME' ),
+					'_password' => getenv( 'SFERANET_PASSWORD' ),
 				),
 			)
 		);
 		if ( is_wp_error( $response ) ) {
 			$this->logger->sferanet_logs( 'Token successfully acquired.' );
-			//throw new \Exception( 'Error during login call in Sfera Net: ' . $response->get_error_message(), 1 );
+			// throw new \Exception( 'Error during login call in Sfera Net: ' . $response->get_error_message(), 1 );
 		}
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
@@ -289,18 +296,18 @@ class Sferanet_WordPress_Integration_Admin {
 			return $body['token'];
 		} else {
 			// It can be also credentials mismatch
-			$this->logger->sferanet_logs( 'Error Processing Request: token not set in response body. JSON from response: ' . json_encode($body) );
+			$this->logger->sferanet_logs( 'Error Processing Request: token not set in response body. JSON from response: ' . wp_json_encode( $body ) );
 
-			//throw new \Exception( 'Error Processing Request: token not set in response body', 1 );
+			// throw new \Exception( 'Error Processing Request: token not set in response body', 1 );
 		}
-
+		return false;
 	}
 
 	/**
 	 * Make login into management software and return the token
 	 *
-	 * @throws \Exception Method that throws exception if the http request had some trouble or if the credentials are not valid.
-	 * @return Token
+	 * @return string Token
+	 * @throws Exception Method that throws exception if the http request had some trouble or if the credentials are not valid.
 	 */
 	public function login_facilews() {
 
@@ -312,27 +319,28 @@ class Sferanet_WordPress_Integration_Admin {
 			$ep,
 			array(
 				'body' => array(
-					'username' => getenv('FACILEWS_USERNAME'),
-					'password' => getenv('FACILEWS_PASSWORD'),
+					'username' => getenv( 'FACILEWS_USERNAME' ),
+					'password' => getenv( 'FACILEWS_PASSWORD' ),
 				),
 			)
 		);
 		if ( is_wp_error( $response ) ) {
-			throw new \Exception( 'Error during login call in Sfera Net: ' . $response->get_error_message(), 1 );
+			throw new Exception( 'Error during login call in Sfera Net: ' . $response->get_error_message(), 1 );
 		}
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		$is_token_in_body = isset( $body['jwt'] );
 		if ( $is_token_in_body ) {
 			$this->logger->sferanet_logs( 'Token from facilews successfully acquired.' );
-			update_option( 'sferanet_facilews_token', $body['jwt']  );
-            $this->set_facilews_token( $body['jwt'] );
+			update_option( 'sferanet_facilews_token', $body['jwt'] );
+			$this->set_facilews_token( $body['jwt'] );
 
 			return $body['jwt'];
 		} else {
 			// It can be also credentials mismatch
 			$this->logger->sferanet_logs( 'Error Processing Request: token from facilews not set in response body' );
 		}
+		return false;
 	}
 
 	/**
@@ -368,15 +376,15 @@ class Sferanet_WordPress_Integration_Admin {
 		}
 	}
 
-    public function validate_facilews_token() {
-        if ( ! $this->is_token_valid( $this->get_facilews_token() ) ) {
-            $this->logger->sferanet_logs( "FacileWS Token Not Valid, value: {$this->get_facilews_token()}" );
-            $this->logger->sferanet_logs( 'Refreshing token...' );
+	public function validate_facilews_token() {
+		if ( ! $this->is_token_valid( $this->get_facilews_token() ) ) {
+			$this->logger->sferanet_logs( "FacileWS Token Not Valid, value: {$this->get_facilews_token()}" );
+			$this->logger->sferanet_logs( 'Refreshing token...' );
 
-            $this->login_facilews();
-            $this->logger->sferanet_logs( 'FacileWS Token refreshed successfully' );
-        }
-    }
+			$this->login_facilews();
+			$this->logger->sferanet_logs( 'FacileWS Token refreshed successfully' );
+		}
+	}
 
 	private function get_all_accounts( $contractor = null ) {
 		$ep = '/accounts';
@@ -392,7 +400,7 @@ class Sferanet_WordPress_Integration_Admin {
 		if ( is_wp_error( $response ) ) {
 			$this->logger->sferanet_logs( 'Error while getting all accounts. Error: ' . $response->get_error_message() );
 
-			throw new \Exception( 'Error while getting all accounts. Error: ' . $response->get_error_message(), 1 );
+			throw new Exception( 'Error while getting all accounts. Error: ' . $response->get_error_message(), 1 );
 		}
 		$response_code = wp_remote_retrieve_response_code( $response );
 		$status        = false;
@@ -421,26 +429,28 @@ class Sferanet_WordPress_Integration_Admin {
 	/**
 	 * id can be VAT code or TAX code
 	 *
-	 * @param [type] $contractor
+	 * @param int $id User ID
+	 * @param bool $is_business Bool value that represent if a user is business or not
+     *
 	 * @return bool | stdClass
 	 */
-	public function get_user_by_id( $id, $is_business = false ) {
-		$field    = $is_business ? 'piva' : 'cf';
+	public function get_user_by_id(int $id, bool $is_business = false ) {
+		$field = $is_business ? 'piva' : 'cf';
 		$this->validate_facilews_token();
-		$ep = "https://facilews3.partnersolution.it/Api/Rest/Account/{$this->options['agency_code_field']}";
+		$ep  = "https://facilews3.partnersolution.it/Api/Rest/Account/{$this->options['agency_code_field']}";
 		$ep .= "?$field=$id";
 
-		$this->logger->sferanet_logs( 'Getting user by id at EP ' . $ep);
+		$this->logger->sferanet_logs( 'Getting user by id at EP ' . $ep );
 
 		$response = wp_remote_get(
 			$ep,
 			array(
-				'headers' => $this->build_headers($this->get_facilews_token()),
+				'headers' => $this->build_headers( $this->get_facilews_token() ),
 			)
 		);
-		$this->logger->sferanet_logs( 'Response: ' . json_encode( wp_remote_retrieve_body( $response ) ) );
+		$this->logger->sferanet_logs( 'Response: ' . wp_json_encode( wp_remote_retrieve_body( $response ) ) );
 
-		return json_decode(wp_remote_retrieve_body( $response ));
+		return json_decode( wp_remote_retrieve_body( $response ) );
 	}
 
 	/**
@@ -454,9 +464,8 @@ class Sferanet_WordPress_Integration_Admin {
 	 *                           cellulare.
 	 *
 	 * @param  mixed $practice_id Id of the practice already existent.
-	 * @throws \Exception An exception is thrown if the http call had some trouble issues.
-	 *
 	 * @return array('status'=> true | false, "msg" => "")
+	 * @throws Exception An exception is thrown if the http call had some trouble issues.
 	 */
 	public function add_passenger_practice( $passenger, $practice_id ) {
 
@@ -492,17 +501,17 @@ class Sferanet_WordPress_Integration_Admin {
 			$this->add_allegatos( $passenger->attachments, $practice_id );
 		}
 
-		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
+		$this->logger->sferanet_logs( 'Payload: ' . wp_json_encode( $body ) );
 		$response = wp_remote_post(
 			$this->base_url . $ep,
 			array(
-				'body'    => json_encode( $body ),
+				'body'    => wp_json_encode( $body ),
 				'headers' => $this->build_headers(),
 			)
 		);
 		if ( is_wp_error( $response ) ) {
 			$this->logger->sferanet_logs( "Error while adding a passenger to the practice. Passenger: $passenger->surname $passenger->name. Error: " . $response->get_error_message() );
-			throw new \Exception( "Error while adding a passenger to the practice. Passenger: $passenger->surname $passenger->name. Error: " . $response->get_error_message(), 1 );
+			throw new Exception( "Error while adding a passenger to the practice. Passenger: $passenger->surname $passenger->name. Error: " . $response->get_error_message(), 1 );
 		}
 		$response_code = wp_remote_retrieve_response_code( $response );
 		$status        = false;
@@ -526,7 +535,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'msg'    => $msg,
 			'data'   => wp_remote_retrieve_body( $response ),
 		);
-		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		$this->logger->sferanet_logs( 'Response: ' . wp_json_encode( $response ) );
 
 		return $response;
 	}
@@ -537,9 +546,9 @@ class Sferanet_WordPress_Integration_Admin {
 	 * @param mixed $contractor User with the following properties:
 	 *                          - Surname
 	 *                          - Name.
-	 *
-	 * @throws \Exception An exception is thrown if the http call had some trouble issues.
+	 * @param mixed $practice_data
 	 * @return [type]
+	 * @throws Exception An exception is thrown if the http call had some trouble issues.
 	 */
 	public function create_practice( $contractor, $practice_data = null ) {
 
@@ -601,7 +610,7 @@ class Sferanet_WordPress_Integration_Admin {
 			$body['emailcliente'] = $contractor->email_address;
 		}
 
-		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
+		$this->logger->sferanet_logs( 'Payload: ' . wp_json_encode( $body ) );
 
 		$response = wp_remote_post(
 			$this->base_url . $ep,
@@ -613,7 +622,7 @@ class Sferanet_WordPress_Integration_Admin {
 		if ( is_wp_error( $response ) ) {
 			$this->logger->sferanet_logs( 'Error while creating a new practice. Error: ' . $response->get_error_message() );
 
-			throw new \Exception( 'Error while creating a new practice. Error: ' . $response->get_error_message(), 1 );
+			throw new Exception( 'Error while creating a new practice. Error: ' . $response->get_error_message(), 1 );
 		}
 
 		$response_code = wp_remote_retrieve_response_code( $response );
@@ -623,7 +632,7 @@ class Sferanet_WordPress_Integration_Admin {
 				$status      = true;
 				$msg         = 'Practice created successfully';
 				$body        = json_decode( wp_remote_retrieve_body( $response ) );
-				$practice_id = explode( '/', $body->{@'id'} );
+				$practice_id = explode( '/', $body->{@'id'} ); //phpcs:ignore
 				$data        = array(
 					'practice_id' => $practice_id[ count( $practice_id ) - 1 ],
 				);
@@ -641,7 +650,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'msg'    => $msg,
 			'data'   => $data,
 		);
-		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		$this->logger->sferanet_logs( 'Response: ' . wp_json_encode( $response ) );
 
 		return $response;
 	}
@@ -653,6 +662,7 @@ class Sferanet_WordPress_Integration_Admin {
 	 * @param mixed $customer Customer object.
 	 *
 	 * @return [type]
+	 * @throws Exception
 	 */
 	public function create_account( $customer ) {
 
@@ -661,7 +671,7 @@ class Sferanet_WordPress_Integration_Admin {
 
 		$this->logger->sferanet_logs( 'Creating a new account. ' );
 
-		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
+		$date    = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 		$options = get_option( 'sferanet-settings' );
 		$body    = array(
 			'codiceagenzia'      => $options['agency_code_field'],
@@ -702,8 +712,8 @@ class Sferanet_WordPress_Integration_Admin {
 			}
 		}
 
-		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
-        $headers = $this->build_headers();
+		$this->logger->sferanet_logs( 'Payload: ' . wp_json_encode( $body ) );
+		$headers  = $this->build_headers();
 		$response = wp_remote_post(
 			$this->base_url . $ep,
 			array(
@@ -714,12 +724,12 @@ class Sferanet_WordPress_Integration_Admin {
 
 		if ( is_wp_error( $response ) ) {
 			$this->logger->sferanet_logs( 'Error while creating a new customer. Error: ' . $response->get_error_message() );
-			throw new \Exception( 'Error while creating a new customer. Error: ' . $response->get_error_message(), 1 );
+			throw new Exception( 'Error while creating a new customer. Error: ' . $response->get_error_message(), 1 );
 		}
 
 		$response_code = wp_remote_retrieve_response_code( $response );
-        $this->logger->sferanet_logs( "Response with code $response_code after parsing: " .  wp_remote_retrieve_body( $response ) );
-		$status        = false;
+		$this->logger->sferanet_logs( "Response with code $response_code after parsing: " . wp_remote_retrieve_body( $response ) );
+		$status = false;
 		switch ( $response_code ) {
 			case 201:
 				$status = true;
@@ -743,7 +753,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'data'   => $data,
 		);
 
-		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		$this->logger->sferanet_logs( 'Response: ' . wp_json_encode( $response ) );
 
 		return $response;
 	}
@@ -872,7 +882,7 @@ class Sferanet_WordPress_Integration_Admin {
 			}
 		}
 
-		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
+		$this->logger->sferanet_logs( 'Payload: ' . wp_json_encode( $body ) );
 
 		$response = wp_remote_post(
 			$this->base_url . $ep,
@@ -884,7 +894,7 @@ class Sferanet_WordPress_Integration_Admin {
 
 		if ( is_wp_error( $response ) ) {
 			$this->logger->sferanet_logs( 'Error while associating a service to a practice. Error: ' . $response->get_error_message() );
-			throw new \Exception( 'Error while associating a service to a practice. Error: ' . $response->get_error_message(), 1 );
+			throw new Exception( 'Error while associating a service to a practice. Error: ' . $response->get_error_message(), 1 );
 		}
 
 		$response_code = wp_remote_retrieve_response_code( $response );
@@ -916,7 +926,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'data'   => $data,
 		);
 
-		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		$this->logger->sferanet_logs( 'Response: ' . wp_json_encode( $response ) );
 
 		return $response;
 	}
@@ -972,7 +982,7 @@ class Sferanet_WordPress_Integration_Admin {
 		}
 		*/
 
-		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
+		$this->logger->sferanet_logs( 'Payload: ' . wp_json_encode( $body ) );
 
 		$response = wp_remote_post(
 			$this->base_url . $ep,
@@ -985,7 +995,7 @@ class Sferanet_WordPress_Integration_Admin {
 		if ( is_wp_error( $response ) ) {
 			$this->logger->sferanet_logs( 'Error while creating a practice quote related to a service. Error: ' . $response->get_error_message() );
 
-			throw new \Exception( 'Error while creating a practice quote related to a service. Error: ' . $response->get_error_message(), 1 );
+			throw new Exception( 'Error while creating a practice quote related to a service. Error: ' . $response->get_error_message(), 1 );
 		}
 
 		$response_code = wp_remote_retrieve_response_code( $response );
@@ -1016,7 +1026,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'msg'    => $msg,
 			'data'   => $data,
 		);
-		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		$this->logger->sferanet_logs( 'Response: ' . wp_json_encode( $response ) );
 		return $response;
 	}
 
@@ -1045,7 +1055,6 @@ class Sferanet_WordPress_Integration_Admin {
 		$this->validate_token();
 		$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 		$this->logger->sferanet_logs( 'Adding financial transaction.' );
-
 
 		$options = get_option( 'sferanet-settings' );
 
@@ -1081,7 +1090,7 @@ class Sferanet_WordPress_Integration_Admin {
 			}
 		}
 		*/
-		$this->logger->sferanet_logs( 'Payload: ' . json_encode( $body ) );
+		$this->logger->sferanet_logs( 'Payload: ' . wp_json_encode( $body ) );
 
 		$response = wp_remote_post(
 			$this->base_url . $ep,
@@ -1093,7 +1102,7 @@ class Sferanet_WordPress_Integration_Admin {
 
 		if ( is_wp_error( $response ) ) {
 			$this->logger->sferanet_logs( 'Error while creating a transactional movement. Error: ' . $response->get_error_message() );
-			throw new \Exception( 'Error while creating a transactional movement. Error: ' . $response->get_error_message(), 1 );
+			throw new Exception( 'Error while creating a transactional movement. Error: ' . $response->get_error_message(), 1 );
 		}
 
 		$response_code = wp_remote_retrieve_response_code( $response );
@@ -1116,7 +1125,8 @@ class Sferanet_WordPress_Integration_Admin {
 				$msg = 'Resource not found.';
 				break;
 			default:
-				$msg = 'Generic error, debug please';
+				$data = $response_body;
+				$msg  = 'Generic error, debug please. Error code: ' . $response_code;
 		}
 
 		$response = array(
@@ -1125,7 +1135,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'data'   => $data,
 		);
 
-		$this->logger->sferanet_logs( 'Response: ' . json_encode( $response ) );
+		$this->logger->sferanet_logs( 'Response: ' . wp_json_encode( $response ) );
 		return $response;
 	}
 
@@ -1134,14 +1144,14 @@ class Sferanet_WordPress_Integration_Admin {
 	 *
 	 * @param [type] $attachments
 	 * @param [type] $practice_id
-	 * @return void
+	 *
+	 * @return mixed
+	 * @throws Exception
 	 */
 	public function add_allegatos( $attachments, $practice_id ) {
 		$ep = '/allegatos';
 		$this->validate_token();
 		$this->logger->sferanet_logs( 'Adding attachments.' );
-		$body            = array();
-		$date            = '';
 		$optional_values = array(
 			// 'id'                            => 'string',
 			'agenziaid'                     => $this->options['agency_id_field'],
@@ -1161,11 +1171,11 @@ class Sferanet_WordPress_Integration_Admin {
 
 			$date = gmdate( 'Y-m-d\TH:i:s.v\Z' );
 
-			$attachment = file_get_contents( parse_url( $url_attachment, PHP_URL_PATH ) );
+			$attachment = wp_remote_get( parse_url( $url_attachment, PHP_URL_PATH ) );
 
 			$body                    = array( 'data' => base64_encode( $attachment ) );
 			$body                    = array_merge( $body, $optional_values );
-			$body['nomefile']        = "attachment_{$i}"; // _{$practice_id}_
+			$body['nomefile']        = "attachment_$i"; // _{$practice_id}_
 			$body['datainserimento'] = $date;
 			$body['descrizione']     = 'Attachment';
 
@@ -1179,7 +1189,7 @@ class Sferanet_WordPress_Integration_Admin {
 
 			if ( is_wp_error( $response ) ) {
 				$this->logger->sferanet_logs( 'Error while adding an attachment. Error: ' . $response->get_error_message() );
-				throw new \Exception( 'Error while adding an attachment. Error: ' . $response->get_error_message(), 1 );
+				throw new Exception( 'Error while adding an attachment. Error: ' . $response->get_error_message(), 1 );
 			}
 
 			$response_code = wp_remote_retrieve_response_code( $response );
@@ -1265,8 +1275,8 @@ class Sferanet_WordPress_Integration_Admin {
 		return $response;
 	}
 
-	private function build_headers($token = null) {
-        $ttoken = $token ?? $this->get_token();
+	private function build_headers( $token = null ) {
+		$ttoken = $token ?? $this->get_token();
 		return array(
 			'Authorization' => 'Bearer ' . $ttoken,
 			'Content-Type'  => 'application/json',
