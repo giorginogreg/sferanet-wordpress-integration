@@ -429,12 +429,12 @@ class Sferanet_WordPress_Integration_Admin {
 	/**
 	 * id can be VAT code or TAX code
 	 *
-	 * @param int $id User ID
+	 * @param string $id User ID
 	 * @param bool $is_business Bool value that represent if a user is business or not
      *
 	 * @return bool | stdClass
 	 */
-	public function get_user_by_id(int $id, bool $is_business = false ) {
+	public function get_user_by_id(string $id, bool $is_business = false ) {
 		$field = $is_business ? 'piva' : 'cf';
 		$this->validate_facilews_token();
 		$ep  = "https://facilews3.partnersolution.it/Api/Rest/Account/{$this->options['agency_code_field']}";
