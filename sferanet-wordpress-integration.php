@@ -13,7 +13,7 @@
  * @package           Sferanet_Wordpress_Integration
  *
  * @wordpress-plugin
- * Plugin Name:       Sferanet - Wordpress Integration
+ * Plugin Name:       Sferanet - WordPress Integration
  * Plugin URI:        https://github.com/giorginogreg/sferanet-wp-integration
  * Description:       Integration for WordPress between Sferanet and the CMS.
  * Version:           1.0.0
@@ -78,6 +78,6 @@ function run_sferanet_wordpress_integration() {
 	$plugin = new Sferanet_Wordpress_Integration();
 	$plugin->run();
 
-	require_once "vendor/autoload.php";
+	require_once 'vendor/autoload.php';
 }
 run_sferanet_wordpress_integration();

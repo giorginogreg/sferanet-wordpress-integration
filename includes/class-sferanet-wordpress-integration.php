@@ -122,6 +122,8 @@ class Sferanet_WordPress_Integration {
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-sferanet-wordpress-integration-public.php';
 
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'vendor/autoload.php';
+
 		$this->loader = new Sferanet_Wordpress_Integration_Loader();
 
 	}
