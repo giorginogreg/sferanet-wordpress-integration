@@ -821,7 +821,7 @@ class Sferanet_WordPress_Integration_Admin {
 			'datacreazione'       => $date,
 			'tipodestinazione'    => $service->destination_type,
 			'tiposervizio'        => $service->type,
-			'descrizione'         => $service->description, // Ciò che apparirà sulla fattura (stesso della pratica)
+			'descrizione'         => $service->name, // Ciò che apparirà sulla fattura (stesso della pratica)
 			'ragsocfornitore'     => $service->supplier_business_name,
 			'codicefornitore'     => $service->supplier_business_code,
 			'codicefilefornitore' => $service->supplier_file_code, // Codice di Conferma del fornitore per la prenotazione
